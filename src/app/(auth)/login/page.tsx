@@ -12,6 +12,8 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPass, setShowPass] = useState(false);
+    const [mfaStep, setMfaStep] = useState(false);
+    const [totpCode, setTotpCode] = useState('');
 
     // ─── إذا مسجّل دخول رح مباشرة ────────────────────────────
     useEffect(() => {
@@ -23,13 +25,23 @@ export default function LoginPage() {
         if (!email || !password) return;
         setLoading(true);
         try {
-            const res = await adminApi.login(email, password);
+            const res = await adminApi.login(email, password, mfaStep ? totpCode : undefined);
+            if (res.data.mfaRequired) {
+                setMfaStep(true);
+                toast.message('Enter your authenticator code');
+                return;
+            }
             auth.setToken(res.data.access_token);
             auth.setUser(res.data.admin);
             toast.success('Welcome back!');
             router.replace('/dashboard');
         } catch (err: any) {
-            toast.error(err.response?.data?.message ?? 'Invalid credentials');
+            const code = err.response?.data?.code;
+            if (code === 'MFA_SETUP_REQUIRED') {
+                toast.error('MFA setup required. Contact superadmin or use Settings after login.');
+            } else {
+                toast.error(err.response?.data?.message ?? 'Invalid credentials');
+            }
         } finally {
             setLoading(false);
         }
@@ -237,6 +249,30 @@ export default function LoginPage() {
                             </button>
                         </div>
                     </div>
+
+                    {mfaStep && (
+                        <div style={{ marginBottom: 24 }}>
+                            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#a1a1aa', marginBottom: 8 }}>
+                                AUTHENTICATOR CODE
+                            </label>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={totpCode}
+                                onChange={(e) => setTotpCode(e.target.value)}
+                                placeholder="000000"
+                                required
+                                autoFocus
+                                style={{
+                                    width: '100%', height: 46, padding: '0 16px',
+                                    background: 'rgba(255,255,255,0.04)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: 12, color: '#fafafa', fontSize: 18,
+                                    letterSpacing: 6, textAlign: 'center', boxSizing: 'border-box',
+                                }}
+                            />
+                        </div>
+                    )}
 
                     {/* Button */}
                     <button

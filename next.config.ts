@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+
   // Fix: Turbopack was scanning ~/ (home) due to stray package-lock.json there
   turbopack: {
     root: path.resolve(__dirname),

@@ -2,6 +2,7 @@
 
 import { LangToggle } from '@/components/ui/LangToggle';
 import { NotificationBell } from '@/components/ui/NotificationBell';
+import { MarketSelector } from '@/components/layout/MarketSelector';
 import { useI18n } from '@/lib/i18n';
 import { useRealtime } from '@/lib/realtime';
 
@@ -35,6 +36,7 @@ export function Header({ title, subtitle }: HeaderProps) {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MarketSelector />
                 <LangToggle />
                 <NotificationBell />
                 <div style={{

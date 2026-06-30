@@ -1,0 +1,17 @@
+# Admin panel — run beside the API stack or standalone.
+#
+#   NEXT_PUBLIC_API_URL=https://api.novaride.app docker compose up -d --build
+#
+# With Caddy on the API host, add to Caddyfile:
+#   admin.novaride.app { reverse_proxy admin:3000 }
+services:
+  admin:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.novaride.app}
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-3001}:3000"
+    environment:
+      NODE_ENV: production

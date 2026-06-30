@@ -4,11 +4,13 @@ export function cn(...inputs: ClassValue[]) {
     return clsx(inputs);
 }
 
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | string | null | undefined): string {
+    const n = Number(amount ?? 0);
+    const safe = Number.isFinite(n) ? n : 0;
     return new Intl.NumberFormat('ar-SY', {
         style: 'decimal',
         maximumFractionDigits: 0,
-    }).format(Math.round(amount)) + ' ل.س';
+    }).format(Math.round(safe)) + ' ل.س';
 }
 
 export function formatDate(date: string | Date): string {

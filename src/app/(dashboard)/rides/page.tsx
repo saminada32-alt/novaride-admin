@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { useRides } from '@/hooks/useRides';
 import { ridesApi } from '@/lib/api';
@@ -159,7 +160,7 @@ export default function RidesPage() {
                                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)'}
                                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                                 >
-                                    <span style={{ fontSize: '11px', color: '#3f3f46', fontFamily: 'monospace' }}>#{r.id}</span>
+                                    <Link href={`/rides/${r.id}`} style={{ fontSize: '11px', color: '#818cf8', fontFamily: 'monospace', textDecoration: 'none' }}>#{r.id}</Link>
                                     <div>
                                         <p style={{ fontSize: '12px', color: '#e4e4e7' }}>{passengerName}</p>
                                         <p style={{ fontSize: '11px', color: '#52525b', fontFamily: 'monospace' }}>{r.passenger?.phone}</p>
@@ -228,7 +229,9 @@ export default function RidesPage() {
                                         )}
                                     </div>
                                     <span style={{ fontSize: '13px', color: '#a1a1aa' }}>
-                                        {r.estimatedDistanceKm.toFixed(1)} km
+                                        {r.estimatedDistanceKm != null
+                                            ? `${Number(r.estimatedDistanceKm).toFixed(1)} km`
+                                            : '—'}
                                     </span>
                                     <div>
                                         <span style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>

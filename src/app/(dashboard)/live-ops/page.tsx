@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { useI18n } from '@/lib/i18n';
@@ -12,6 +13,7 @@ import {
     type OpsLiveDriver,
     type OpsScheduledRide,
 } from '@/lib/api';
+import { useMarket } from '@/lib/market-context';
 
 const POLL_MS = 10000;
 const DAMASCUS: [number, number] = [33.5138, 36.2765];
@@ -61,6 +63,7 @@ function loadLeaflet(): Promise<Leaflet> {
 export default function LiveOpsPage() {
     const { t, isAr } = useI18n();
     const { onRefresh } = useRealtime();
+    const { marketCode } = useMarket();
 
     const [dashboard, setDashboard] = useState<OpsDashboard | null>(null);
     const [alerts, setAlerts] = useState<OpsAlert[]>([]);
@@ -77,11 +80,11 @@ export default function LiveOpsPage() {
     const load = useCallback(async () => {
         // Each endpoint is independent: a single failure must not blank the page.
         const [dash, q, map, active, scheduled, h] = await Promise.allSettled([
-            opsApi.dashboard(),
-            opsApi.queues(),
-            opsApi.liveMap(),
-            opsApi.activeRides(),
-            opsApi.scheduledRides(),
+            opsApi.dashboard(marketCode),
+            opsApi.queues(marketCode),
+            opsApi.liveMap(marketCode),
+            opsApi.activeRides(marketCode),
+            opsApi.scheduledRides(marketCode),
             opsApi.health(),
         ]);
         if (dash.status === 'fulfilled') setDashboard(dash.value.data);
@@ -91,12 +94,12 @@ export default function LiveOpsPage() {
         if (scheduled.status === 'fulfilled') setScheduledRides(scheduled.value.data ?? []);
         if (h.status === 'fulfilled') setHealth(h.value.data?.status ?? null);
         setLoading(false);
-    }, []);
+    }, [marketCode]);
 
     useEffect(() => {
-        load();
-        const timer = setInterval(load, POLL_MS);
-        const unsub = onRefresh(load);
+        const timer = setInterval(() => { void load(); }, POLL_MS);
+        const unsub = onRefresh(() => { void load(); });
+        void load();
         return () => {
             clearInterval(timer);
             unsub();
@@ -303,12 +306,25 @@ export default function LiveOpsPage() {
                                 <tbody>
                                     {rides.map((r) => (
                                         <tr key={r.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', color: '#d4d4d8' }}>
-                                            <td style={tdStyle}>{r.id}</td>
+                                            <td style={tdStyle}>
+                                                <Link href={`/rides/${r.id}`} style={{ color: '#818cf8', textDecoration: 'none' }}>#{r.id}</Link>
+                                            </td>
                                             <td style={tdStyle}>{r.status}</td>
                                             <td style={tdStyle}>{r.passenger?.phone ?? '—'}</td>
                                             <td style={tdStyle}>{r.driver?.name || '—'}</td>
                                             <td style={tdStyle}>{r.estimatedFare}</td>
                                             <td style={tdStyle}>
+                                                <Link
+                                                    href={`/rides/${r.id}`}
+                                                    style={{
+                                                        color: '#818cf8',
+                                                        textDecoration: 'none',
+                                                        marginRight: 8,
+                                                        fontSize: 12,
+                                                    }}
+                                                >
+                                                    {isAr ? 'إدارة' : 'Manage'}
+                                                </Link>
                                                 <button
                                                     onClick={() => handleCancel(r.id)}
                                                     style={{

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
-import { adminSettingsApi } from '@/lib/api';
+import { adminSettingsApi, adminMfaApi } from '@/lib/api';
 
 export default function SettingsPage() {
     //const { t } = useI18n();
@@ -14,7 +14,33 @@ export default function SettingsPage() {
     const [newPass, setNewPass] = useState('');
     const [confirmPass, setConfirmPass] = useState('');
     const [loading, setLoading] = useState(false);
+    const [mfaSecret, setMfaSecret] = useState<string | null>(null);
+    const [mfaCode, setMfaCode] = useState('');
+    const [mfaLoading, setMfaLoading] = useState(false);
     const { t, isAr } = useI18n();
+
+    async function setupMfa() {
+        setMfaLoading(true);
+        try {
+            const res = await adminMfaApi.setup();
+            setMfaSecret(res.data.secret);
+            toast.success(isAr ? 'امسح الرمز في تطبيق المصادقة' : 'Scan QR in authenticator app');
+        } catch (e: any) {
+            toast.error(e.response?.data?.message ?? 'Failed');
+        } finally { setMfaLoading(false); }
+    }
+
+    async function confirmMfa() {
+        setMfaLoading(true);
+        try {
+            await adminMfaApi.confirm(mfaCode);
+            toast.success(isAr ? 'تم تفعيل MFA' : 'MFA enabled');
+            setMfaSecret(null);
+            setMfaCode('');
+        } catch (e: any) {
+            toast.error(e.response?.data?.message ?? 'Invalid code');
+        } finally { setMfaLoading(false); }
+    }
     async function handleChangePassword(e: React.FormEvent) {
         e.preventDefault();
         if (newPass !== confirmPass) { toast.error(isAr ? 'كلمة المرور غير متطابقة' : 'Passwords do not match'); return; }
@@ -118,6 +144,27 @@ export default function SettingsPage() {
                             {loading ? '...' : t.updatePassword}
                         </button>
                     </form>
+                </Section>
+
+                <Section title={isAr ? 'المصادقة الثنائية (MFA)' : 'Two-Factor Auth (MFA)'}>
+                    <p style={{ fontSize: 12, color: '#71717a', marginBottom: 12 }}>
+                        {isAr ? 'مطلوب لحسابات ADMIN و SUPERADMIN' : 'Required for ADMIN and SUPERADMIN accounts'}
+                    </p>
+                    {!mfaSecret ? (
+                        <button type="button" onClick={setupMfa} disabled={mfaLoading} style={{
+                            padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                            background: 'rgba(99,102,241,0.2)', color: '#818cf8', fontSize: 13,
+                        }}>{isAr ? 'إعداد MFA' : 'Setup MFA'}</button>
+                    ) : (
+                        <div>
+                            <p style={{ fontSize: 11, color: '#a1a1aa', fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: 8 }}>{mfaSecret}</p>
+                            <Field label="TOTP Code" type="text" value={mfaCode} onChange={(e: any) => setMfaCode(e.target.value)} placeholder="000000" />
+                            <button type="button" onClick={confirmMfa} disabled={mfaLoading} style={{
+                                padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontSize: 13,
+                            }}>{isAr ? 'تأكيد' : 'Confirm'}</button>
+                        </div>
+                    )}
                 </Section>
 
                 {/* API Info */}

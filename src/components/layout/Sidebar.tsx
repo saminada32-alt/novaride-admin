@@ -27,6 +27,12 @@ export function Sidebar() {
             label: isAr ? 'العمليات' : 'OPERATIONS',
             items: [
                 { href: '/live-ops', label: t.liveOps },
+                { href: '/sham-cash-queue', label: isAr ? 'طابور شام كاش' : 'Sham Cash' },
+                { href: '/safety-sos', label: isAr ? 'مكتب SOS' : 'SOS Desk' },
+                { href: '/finance', label: isAr ? 'المالية' : 'Finance' },
+                { href: '/payouts', label: isAr ? 'المدفوعات' : 'Payouts' },
+                { href: '/kyc', label: isAr ? 'طابور KYC' : 'KYC Queue' },
+                { href: '/fraud', label: isAr ? 'الاحتيال' : 'Fraud Desk' },
                 { href: '/drivers', label: t.drivers },
                 { href: '/documents', label: t.documents },
                 { href: '/rides', label: t.rides },
@@ -36,6 +42,7 @@ export function Sidebar() {
                 { href: '/promotions', label: isAr ? 'العروض' : 'Promotions' },
                 { href: '/analytics', label: isAr ? 'التحليلات' : 'Analytics' },
                 { href: '/complaints', label: isAr ? 'الشكاوى' : 'Complaints' },
+                { href: '/privacy-dsr', label: isAr ? 'خصوصية DSR' : 'Privacy DSR' },
                 { href: '/support-chat', label: isAr ? 'دردشة الدعم' : 'Support Chat' },
                 { href: '/pricing', label: isAr ? 'التسعير' : 'Pricing' },
             ],
@@ -43,6 +50,7 @@ export function Sidebar() {
         {
             label: isAr ? 'النظام' : 'SYSTEM',
             items: [
+                { href: '/audit', label: isAr ? 'سجل التدقيق' : 'Audit Logs' },
                 { href: '/settings', label: t.settings },
             ],
         },
@@ -51,6 +59,13 @@ export function Sidebar() {
     const icons: Record<string, React.ReactNode> = {
         '/dashboard': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>,
         '/live-ops': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="2" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="22" y2="12" /></svg>,
+        '/sham-cash-queue': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>,
+        '/safety-sos': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>,
+        '/finance': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>,
+        '/payouts': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>,
+        '/kyc': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><polyline points="16 11 18 13 22 9" /></svg>,
+        '/fraud': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>,
+        '/audit': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
         '/drivers': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
         '/documents': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>,
         '/rides': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 3v4h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>,
@@ -66,6 +81,7 @@ export function Sidebar() {
             fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>,
+        '/privacy-dsr': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>,
         '/support-chat': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>,
         '/pricing': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>,
     };
@@ -159,7 +175,7 @@ export function Sidebar() {
                                         onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.color = '#a1a1aa'; } }}
                                         onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#71717a'; } }}
                                     >
-                                        <span style={{ flexShrink: 0 }}>{icons[href]}</span>
+                                        <span style={{ flexShrink: 0 }}>{icons[href] ?? <span style={{ width: 15, display: 'inline-block' }}>•</span>}</span>
                                         {label}
                                     </div>
                                 </Link>

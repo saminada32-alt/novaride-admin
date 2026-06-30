@@ -35,8 +35,8 @@ export const api = createClient();
 // ─── API calls ────────────────────────────────────────────────
 
 export const adminApi = {
-    login: (email: string, password: string) =>
-        api.post('/admin/login', { email, password }),
+    login: (email: string, password: string, totpCode?: string) =>
+        api.post('/admin/login', { email, password, totpCode }),
     getMe: () => api.get('/admin/me'),
 };
 
@@ -47,6 +47,9 @@ export const driversApi = {
     approve: (id: number) => api.patch(`/drivers/${id}/approve`),
     reject: (id: number, reason?: string) =>
         api.patch(`/drivers/${id}/reject`, { reason }),
+    suspend: (id: number, reason?: string) =>
+        api.patch(`/drivers/${id}/suspend`, { reason }),
+    unsuspend: (id: number) => api.patch(`/drivers/${id}/unsuspend`),
 };
 
 export const documentsApi = {
@@ -64,6 +67,7 @@ export const documentsApi = {
 export const ridesApi = {
     getAll: (params?: { status?: string; limit?: number }) =>
         api.get('/rides', { params }),
+    getAdminDetail: (id: number) => api.get(`/rides/${id}/admin`),
     confirmPayment: (rideId: number) =>
         api.patch(`/rides/${rideId}/payment/confirm`),
 };
@@ -142,24 +146,94 @@ export interface OpsScheduledRide {
     createdAt: string;
 }
 
+export interface OpsPendingPayment {
+    id: number;
+    status: string;
+    marketCode?: string;
+    finalFare?: number;
+    estimatedFare?: number;
+    paymentReference?: string;
+    paymentMethod?: string;
+    completedAt?: string;
+    passenger: { id: number; firstName?: string; lastName?: string; phone?: string } | null;
+    driver: { id: number; firstName?: string; lastName?: string; phone?: string } | null;
+}
+
+export interface OpsSosIncident {
+    id: number;
+    rideId: number;
+    createdAt: string;
+    meta: {
+        userId?: number;
+        role?: string;
+        lat?: number;
+        lng?: number;
+        at?: string;
+    };
+    ride: {
+        id: number;
+        status: string;
+        marketCode?: string | null;
+        passenger: { id: number; name: string; phone?: string } | null;
+        driver: { id: number; name: string; phone?: string } | null;
+    } | null;
+}
+
+export interface AdminMarket {
+    id: number;
+    code: string;
+    nameAr: string;
+    nameEn: string;
+    currency: string;
+    currencySymbol: string;
+    active: boolean;
+}
+
+const opsMarketParams = (marketCode?: string | null) =>
+    marketCode ? { marketCode } : {};
+
 export const opsApi = {
-    dashboard: () => api.get<OpsDashboard>('/ops/dashboard'),
-    liveMap: () =>
-        api.get<{ updatedAt: string; drivers: OpsLiveDriver[] }>('/ops/live-map'),
-    activeRides: () => api.get<OpsActiveRide[]>('/ops/rides/active'),
-    scheduledRides: () => api.get<OpsScheduledRide[]>('/ops/rides/scheduled'),
-    queues: () =>
+    dashboard: (marketCode?: string | null) =>
+        api.get<OpsDashboard>('/ops/dashboard', { params: opsMarketParams(marketCode) }),
+    liveMap: (marketCode?: string | null) =>
+        api.get<{ updatedAt: string; drivers: OpsLiveDriver[] }>('/ops/live-map', {
+            params: opsMarketParams(marketCode),
+        }),
+    activeRides: (marketCode?: string | null) =>
+        api.get<OpsActiveRide[]>('/ops/rides/active', { params: opsMarketParams(marketCode) }),
+    scheduledRides: (marketCode?: string | null) =>
+        api.get<OpsScheduledRide[]>('/ops/rides/scheduled', { params: opsMarketParams(marketCode) }),
+    queues: (marketCode?: string | null) =>
         api.get<{
+            marketCode?: string | null;
             dispatchQueueLength: number;
             socket: { connected: number; rooms: number };
             onlineDrivers: number;
+            searchingRides: number;
             alerts: OpsAlert[];
-        }>('/ops/queues'),
+        }>('/ops/queues', { params: opsMarketParams(marketCode) }),
     health: () => api.get('/ops/health'),
     cancelRide: (rideId: number, reason?: string) =>
         api.post(`/ops/rides/${rideId}/cancel`, { reason }),
     confirmPayment: (rideId: number) =>
         api.patch(`/ops/rides/${rideId}/payment/confirm`),
+    pendingPayments: (marketCode?: string | null) =>
+        api.get<OpsPendingPayment[]>('/ops/rides/pending-payments', {
+            params: opsMarketParams(marketCode),
+        }),
+    sosIncidents: (marketCode?: string | null) =>
+        api.get<OpsSosIncident[]>('/ops/safety/sos', { params: opsMarketParams(marketCode) }),
+    pendingDrivers: () => api.get('/ops/drivers/pending'),
+    assignCandidates: (rideId: number) =>
+        api.get(`/ops/rides/${rideId}/assign-candidates`),
+    assignDriver: (rideId: number, driverId: number) =>
+        api.post(`/ops/rides/${rideId}/assign`, { driverId }),
+    reassignDriver: (rideId: number, driverId: number) =>
+        api.post(`/ops/rides/${rideId}/reassign`, { driverId }),
+};
+
+export const marketsApi = {
+    adminList: () => api.get<AdminMarket[]>('/markets/admin'),
 };
 
 export const passengersApi = {
@@ -252,4 +326,130 @@ export const chatApi = {
         api.get<SupportChatMessage[]>(`/support/chat/passenger/${passengerId}`),
     sendMessage: (passengerId: number, body: string) =>
         api.post<SupportChatMessage>(`/support/chat/passenger/${passengerId}`, { body }),
+};
+
+// ─── Privacy / DSR ────────────────────────────────────────────
+
+export type PrivacyDsrType =
+    | 'access'
+    | 'erasure'
+    | 'rectification'
+    | 'portability'
+    | 'restriction'
+    | 'objection';
+
+export type PrivacyDsrStatus =
+    | 'submitted'
+    | 'identity_verified'
+    | 'in_progress'
+    | 'completed'
+    | 'rejected'
+    | 'cancelled';
+
+export type PrivacyDsrRequest = {
+    id: number;
+    userId: number;
+    userRole: 'PASSENGER' | 'DRIVER';
+    type: PrivacyDsrType;
+    status: PrivacyDsrStatus;
+    details?: string | null;
+    rectificationPayload?: Record<string, unknown> | null;
+    exportPayload?: Record<string, unknown> | null;
+    adminNote?: string | null;
+    assignedAdminId?: number | null;
+    dueAt: string;
+    completedAt?: string | null;
+    rejectionReason?: string | null;
+    createdAt: string;
+    updatedAt?: string;
+    exportAvailable?: boolean;
+};
+
+export type PrivacyDsrStats = {
+    byStatus: Record<PrivacyDsrStatus, number>;
+    overdue: number;
+    slaDays: number;
+};
+
+export const privacyDsrApi = {
+    getStats: () => api.get<PrivacyDsrStats>('/privacy/dsr/admin/stats'),
+    list: (params?: {
+        status?: PrivacyDsrStatus;
+        type?: PrivacyDsrType;
+        page?: number;
+        limit?: number;
+    }) => api.get<{ data: PrivacyDsrRequest[]; total: number; page: number; pageSize: number }>(
+        '/privacy/dsr/admin',
+        { params },
+    ),
+    update: (id: number, data: {
+        status?: PrivacyDsrStatus;
+        adminNote?: string;
+        rejectionReason?: string;
+    }) => api.patch<PrivacyDsrRequest>(`/privacy/dsr/admin/${id}`, data),
+    fulfillErasure: (id: number) =>
+        api.post<PrivacyDsrRequest>(`/privacy/dsr/admin/${id}/fulfill-erasure`),
+    fulfillAccess: (id: number) =>
+        api.post<PrivacyDsrRequest>(`/privacy/dsr/admin/${id}/fulfill-access`),
+    fulfillRectification: (id: number) =>
+        api.post<PrivacyDsrRequest>(`/privacy/dsr/admin/${id}/fulfill-rectification`),
+};
+
+// ─── Finance / Ledger / Payouts / KYC / Fraud / Audit / MFA ──
+
+export const financeApi = {
+    getSummary: (from?: string, to?: string) =>
+        api.get('/finance/reconciliation/summary', { params: { from, to } }),
+    getItems: (from?: string, to?: string) =>
+        api.get('/finance/reconciliation/items', { params: { from, to } }),
+    matchRide: (rideId: number) =>
+        api.post(`/finance/reconciliation/rides/${rideId}/match`),
+};
+
+export const ledgerApi = {
+    getSummary: () => api.get('/ledger/summary'),
+    getEntries: (params?: { account?: string; rideId?: number; limit?: number }) =>
+        api.get('/ledger/entries', { params }),
+};
+
+export const payoutsApi = {
+    getPending: () => api.get('/ops/payouts/pending'),
+    getAll: () => api.get('/ops/payouts'),
+    getBalances: () => api.get('/ops/payouts/balances'),
+    approve: (id: number) => api.patch(`/ops/payouts/${id}/approve`),
+    reject: (id: number, reason?: string) =>
+        api.patch(`/ops/payouts/${id}/reject`, { note: reason }),
+};
+
+export const kycApi = {
+    getQueue: (status?: string) =>
+        api.get('/kyc/admin/queue', { params: status ? { status } : {} }),
+    approve: (driverId: number) => api.patch(`/kyc/admin/${driverId}/approve`),
+    reject: (driverId: number, reason?: string) =>
+        api.patch(`/kyc/admin/${driverId}/reject`, { reason }),
+};
+
+export const fraudApi = {
+    getAlerts: (params?: { status?: string; type?: string; limit?: number }) =>
+        api.get('/fraud/admin', { params }),
+    getStats: () => api.get('/fraud/admin/stats'),
+    getRules: () => api.get('/fraud/admin/rules'),
+    updateRule: (id: number, data: Record<string, unknown>) =>
+        api.patch(`/fraud/admin/rules/${id}`, data),
+    review: (id: number, data: { status: string; adminNote?: string; applyEnforcement?: boolean }) =>
+        api.patch(`/fraud/admin/${id}/review`, data),
+    scan: () => api.post('/fraud/admin/scan'),
+};
+
+export const auditApi = {
+    getPlatform: (params?: { limit?: number; category?: string; from?: string; to?: string }) =>
+        api.get('/platform-audit', { params }),
+    getAdmin: (params?: { limit?: number; action?: string; from?: string; to?: string }) =>
+        api.get('/admin/audit', { params }),
+};
+
+export const adminMfaApi = {
+    setup: () => api.post('/admin/mfa/setup'),
+    confirm: (code: string) => api.post('/admin/mfa/confirm', { code }),
+    disable: (code: string) => api.post('/admin/mfa/disable', { code }),
 };

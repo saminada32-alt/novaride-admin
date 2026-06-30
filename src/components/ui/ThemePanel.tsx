@@ -20,22 +20,8 @@ const MODES: { key: PanelMode; label: string; labelAr: string; icon: string }[] 
     { key: 'light', label: 'Light', labelAr: 'فاتح', icon: '☀️' },
 ];
 
-export function ThemePanelV2() {
-    const { theme, update, reset } = useTheme();
-    const { isAr } = useI18n();
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    // ─── Helper Components ───────────────────────
-    const Row = ({ label, labelAr, children }: { label: string; labelAr: string; children: React.ReactNode }) => (
+function ThemeRow({ label, labelAr, isAr, children }: { label: string; labelAr: string; isAr: boolean; children: React.ReactNode }) {
+    return (
         <div style={{ marginBottom: '18px' }}>
             <p style={{
                 fontSize: '10px', fontWeight: '700', color: 'var(--text-4)',
@@ -44,8 +30,10 @@ export function ThemePanelV2() {
             {children}
         </div>
     );
+}
 
-    const OptionBtn = ({ active, onClick, children, style }: any) => (
+function ThemeOptionBtn({ active, onClick, children, style }: { active: boolean; onClick: () => void; children: React.ReactNode; style?: React.CSSProperties }) {
+    return (
         <button
             onClick={onClick}
             style={{
@@ -66,8 +54,10 @@ export function ThemePanelV2() {
             {children}
         </button>
     );
+}
 
-    const Toggle = ({ value, onChange, label, labelAr }: any) => (
+function ThemeToggle({ value, onChange, label, labelAr, isAr }: { value: boolean; onChange: (v: boolean) => void; label: string; labelAr: string; isAr: boolean }) {
+    return (
         <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             padding: '8px 0', borderBottom: '1px solid var(--border)',
@@ -94,6 +84,21 @@ export function ThemePanelV2() {
             </button>
         </div>
     );
+}
+
+export function ThemePanelV2() {
+    const { theme, update, reset } = useTheme();
+    const { isAr } = useI18n();
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     return (
         <div ref={ref} style={{ position: 'fixed', bottom: '24px', left: '24px', zIndex: 9999 }}>
@@ -134,18 +139,18 @@ export function ThemePanelV2() {
 
                     <div style={{ padding: '16px 18px', maxHeight: '70vh', overflowY: 'auto' }}>
                         {/* Mode */}
-                        <Row label="APPEARANCE" labelAr="المظهر">
+                        <ThemeRow label="APPEARANCE" labelAr="المظهر" isAr={isAr}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                                 {MODES.map(m => (
-                                    <OptionBtn key={m.key} active={theme.mode === m.key} onClick={() => update({ mode: m.key })}>
+                                    <ThemeOptionBtn key={m.key} active={theme.mode === m.key} onClick={() => update({ mode: m.key })}>
                                         {m.icon} {isAr ? m.labelAr : m.label}
-                                    </OptionBtn>
+                                    </ThemeOptionBtn>
                                 ))}
                             </div>
-                        </Row>
+                        </ThemeRow>
 
                         {/* Accent */}
-                        <Row label="ACCENT COLOR" labelAr="لون التمييز">
+                        <ThemeRow label="ACCENT COLOR" labelAr="لون التمييز" isAr={isAr}>
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                 {ACCENT_COLORS.map(({ key, color }) => (
                                     <button key={key} onClick={() => update({ accent: key })} style={{
@@ -158,13 +163,13 @@ export function ThemePanelV2() {
                                     }} />
                                 ))}
                             </div>
-                        </Row>
+                        </ThemeRow>
 
                         {/* Toggles */}
-                        <Row label="EFFECTS" labelAr="التأثيرات">
-                            <Toggle value={theme.animations} onChange={(v: boolean) => update({ animations: v })} label="Animations" labelAr="الحركات" />
-                            <Toggle value={theme.blur} onChange={(v: boolean) => update({ blur: v })} label="Blur Effects" labelAr="تأثير الضبابية" />
-                        </Row>
+                        <ThemeRow label="EFFECTS" labelAr="التأثيرات" isAr={isAr}>
+                            <ThemeToggle value={theme.animations} onChange={(v) => update({ animations: v })} label="Animations" labelAr="الحركات" isAr={isAr} />
+                            <ThemeToggle value={theme.blur} onChange={(v) => update({ blur: v })} label="Blur Effects" labelAr="تأثير الضبابية" isAr={isAr} />
+                        </ThemeRow>
                     </div>
                 </div>
             )}

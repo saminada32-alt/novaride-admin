@@ -8,6 +8,7 @@ import { ThemePanelV2 } from '@/components/ui/ThemePanel';
 import { useTheme } from '@/lib/theme';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { RealtimeProvider } from '@/lib/realtime';
+import { MarketProvider } from '@/lib/market-context';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -20,6 +21,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return (
         <RealtimeProvider>
+        <MarketProvider>
         <div style={{
             minHeight: '100vh',
             background: 'var(--bg)',
@@ -38,6 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <ThemePanelV2 />
         </div>
+        </MarketProvider>
         </RealtimeProvider>
     );
 }

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Header } from '@/components/layout/Header';
 import { driversApi, documentsApi } from '@/lib/api';
 import type { Driver, DriverDocument } from '@/lib/types';
+import { useI18n } from '@/lib/i18n';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -122,6 +123,7 @@ const Doc = ({ src, label }: any) => {
 
 export default function DriverDetailPage() {
     const { id } = useParams();
+    const { isAr } = useI18n();
 
     const [driver, setDriver] = useState<Driver | null>(null);
     const [doc, setDoc] = useState<DriverDocument | null>(null);
@@ -176,6 +178,31 @@ export default function DriverDetailPage() {
     const rides = (driver as any).rides || [];
     const notes = (driver as any).notes || [];
     const rejectionReason = (driver as any).rejectionReason;
+    const suspendedAt = (driver as any).suspendedAt as string | undefined;
+    const suspendReason = (driver as any).suspendReason as string | undefined;
+
+    async function suspendDriver() {
+        const reason = prompt(isAr ? 'سبب التعليق' : 'Suspend reason') ?? '';
+        try {
+            await driversApi.suspend(Number(id), reason || 'Suspended by admin');
+            toast.success(isAr ? 'تم تعليق السائق' : 'Driver suspended');
+            const d = await driversApi.getOne(Number(id));
+            setDriver(d.data);
+        } catch (e: any) {
+            toast.error(e.response?.data?.message ?? 'Failed');
+        }
+    }
+
+    async function unsuspendDriver() {
+        try {
+            await driversApi.unsuspend(Number(id));
+            toast.success(isAr ? 'تم إلغاء التعليق' : 'Driver unsuspended');
+            const d = await driversApi.getOne(Number(id));
+            setDriver(d.data);
+        } catch (e: any) {
+            toast.error(e.response?.data?.message ?? 'Failed');
+        }
+    }
 
     const approvedDays =
         approvedAt
@@ -232,10 +259,48 @@ export default function DriverDetailPage() {
                                 سبب الرفض: {rejectionReason}
                             </div>
                         )}
+                        {suspendedAt && (
+                            <div style={{ fontSize: 12, color: '#f87171', marginTop: 4 }}>
+                                {isAr ? 'معلّق' : 'Suspended'}: {suspendReason ?? '—'}
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <Status driver={driver} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+                    <Status driver={driver} />
+                    {suspendedAt ? (
+                        <button
+                            onClick={unsuspendDriver}
+                            style={{
+                                background: 'rgba(34,197,94,0.15)',
+                                border: 'none',
+                                color: '#4ade80',
+                                padding: '6px 12px',
+                                borderRadius: 8,
+                                cursor: 'pointer',
+                                fontSize: 12,
+                            }}
+                        >
+                            {isAr ? 'إلغاء التعليق' : 'Unsuspend'}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={suspendDriver}
+                            style={{
+                                background: 'rgba(239,68,68,0.15)',
+                                border: 'none',
+                                color: '#f87171',
+                                padding: '6px 12px',
+                                borderRadius: 8,
+                                cursor: 'pointer',
+                                fontSize: 12,
+                            }}
+                        >
+                            {isAr ? 'تعليق السائق' : 'Suspend driver'}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* 📊 COMPLETION */}
