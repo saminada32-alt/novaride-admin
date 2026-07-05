@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { useDrivers } from '@/hooks/useDrivers';
 import { driversApi } from '@/lib/api';
+import { approveDriverFull } from '@/lib/approve-driver';
 import { Header } from '@/components/layout/Header';
 import { formatDate } from '@/lib/utils';
 import { Pagination } from '@/components/ui/Pagination';
@@ -31,6 +32,13 @@ export default function DriversPage() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
 
+    useEffect(() => {
+        const q = new URLSearchParams(window.location.search).get('tab');
+        if (q === 'approved' || q === 'pending' || q === 'rejected') {
+            setTab(q);
+        }
+    }, []);
+
     const { drivers, loading, refetch } = useDrivers(tab || undefined);
 
     const PAGE_SIZE = 12;
@@ -47,16 +55,30 @@ export default function DriversPage() {
 
     const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+    function apiErrorMessage(e: unknown): string {
+        const err = e as { response?: { data?: { message?: string | string[] } }; message?: string };
+        const msg = err?.response?.data?.message ?? err?.message ?? 'Failed';
+        return Array.isArray(msg) ? msg.join(', ') : String(msg);
+    }
+
     async function approve(id: number) {
-        await driversApi.approve(id);
-        toast.success('Approved');
-        refetch();
+        try {
+            await approveDriverFull(id);
+            toast.success(isAr ? 'تم قبول السائق' : 'Driver approved');
+            refetch();
+        } catch (e) {
+            toast.error(apiErrorMessage(e));
+        }
     }
 
     async function reject(id: number) {
-        await driversApi.reject(id, 'Rejected by admin');
-        toast.success('Rejected');
-        refetch();
+        try {
+            await driversApi.reject(id, 'Rejected by admin');
+            toast.success(isAr ? 'تم الرفض' : 'Rejected');
+            refetch();
+        } catch (e) {
+            toast.error(apiErrorMessage(e));
+        }
     }
 
     return (

@@ -1,26 +1,24 @@
 import axios, { AxiosInstance } from 'axios';
 import { auth } from './auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+const API_URL =
+    typeof window === 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000')
+        : '/api/proxy';
 
 const createClient = (): AxiosInstance => {
     const client = axios.create({
         baseURL: API_URL,
         timeout: 15000,
         headers: { 'Content-Type': 'application/json' },
-    });
-
-    client.interceptors.request.use((config) => {
-        const token = auth.getToken();
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
+        withCredentials: true,
     });
 
     client.interceptors.response.use(
         (res) => res,
-        (err) => {
-            if (err.response?.status === 401) {
-                auth.clear();
+        async (err) => {
+            if (err.response?.status === 401 && typeof window !== 'undefined') {
+                await auth.clear();
                 window.location.href = '/login';
             }
             return Promise.reject(err);
@@ -36,7 +34,19 @@ export const api = createClient();
 
 export const adminApi = {
     login: (email: string, password: string, totpCode?: string) =>
-        api.post('/admin/login', { email, password, totpCode }),
+        fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, totpCode }),
+        }).then(async (res) => {
+            const data = await res.json();
+            if (!res.ok) {
+                const err: any = new Error(data.message ?? 'Login failed');
+                err.response = { data, status: res.status };
+                throw err;
+            }
+            return { data };
+        }),
     getMe: () => api.get('/admin/me'),
 };
 
@@ -50,6 +60,7 @@ export const driversApi = {
     suspend: (id: number, reason?: string) =>
         api.patch(`/drivers/${id}/suspend`, { reason }),
     unsuspend: (id: number) => api.patch(`/drivers/${id}/unsuspend`),
+    approveFull: (id: number) => api.patch(`/drivers/${id}/approve-full`),
 };
 
 export const documentsApi = {
@@ -60,10 +71,13 @@ export const documentsApi = {
         api.get(`/documents/driver/${driverId}`),
     approve: (driverId: number) =>
         api.patch(`/documents/driver/${driverId}/approve`),
-    reject: (driverId: number, reason: string) =>
+    reject: (driverId: number, reason?: string) =>
         api.patch(`/documents/driver/${driverId}/reject`, { reason }),
+    rejectFields: (
+        driverId: number,
+        data: { fields: string[]; reason?: string; fieldReasons?: Record<string, string> },
+    ) => api.patch(`/documents/driver/${driverId}/reject-fields`, data),
 };
-
 export const ridesApi = {
     getAll: (params?: { status?: string; limit?: number }) =>
         api.get('/rides', { params }),

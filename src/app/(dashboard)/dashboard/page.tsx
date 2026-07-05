@@ -1,10 +1,17 @@
 'use client';
 
+import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { useStats } from '@/hooks/useStats';
 import { useRides } from '@/hooks/useRides';
 import { useI18n } from '@/lib/i18n';
 import { Header } from '@/components/layout/Header';
 import { formatCurrency, formatRelativeTime } from '@/lib/utils';
+import { driversApi } from '@/lib/api';
+import { approveDriverFull } from '@/lib/approve-driver';
+import type { Driver } from '@/lib/types';
 
 const STATUS_COLORS: any = {
     SEARCHING: { bg: 'rgba(245,158,11,0.1)', text: '#fbbf24' },
@@ -18,9 +25,35 @@ const STATUS_COLORS: any = {
 };
 
 export default function DashboardPage() {
+    const router = useRouter();
     const { stats, health, loading } = useStats();
     const { rides } = useRides();
     const { t, isAr } = useI18n();
+    const [pendingDrivers, setPendingDrivers] = useState<Driver[]>([]);
+    const [approvingId, setApprovingId] = useState<number | null>(null);
+
+    const loadPending = useCallback(() => {
+        driversApi.getAll('pending')
+            .then((res) => setPendingDrivers(res.data.slice(0, 8)))
+            .catch(() => setPendingDrivers([]));
+    }, []);
+
+    useEffect(() => {
+        loadPending();
+    }, [loadPending, stats?.pendingDrivers]);
+
+    async function handleApprove(driverId: number) {
+        setApprovingId(driverId);
+        try {
+            await approveDriverFull(driverId);
+            toast.success(isAr ? 'تم قبول السائق' : 'Driver approved');
+            loadPending();
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message ?? 'Failed');
+        } finally {
+            setApprovingId(null);
+        }
+    }
 
     if (loading) return (
         <>
@@ -115,6 +148,110 @@ export default function DashboardPage() {
                     </span>
                 </div>
 
+                {/* Pending driver approvals — prominent at top */}
+                <div style={{
+                    background: 'var(--bg-card, rgba(255,255,255,0.02))',
+                    border: '1px solid var(--border, rgba(255,255,255,0.07))',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    marginBottom: '24px',
+                }}>
+                    <div style={{
+                        padding: '16px 20px',
+                        borderBottom: '1px solid var(--border, rgba(255,255,255,0.06))',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                    }}>
+                        <div>
+                            <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-1, #e4e4e7)' }}>
+                                {isAr ? 'طلبات السائقين المعلّقة' : 'Pending driver applications'}
+                            </p>
+                            <p style={{ fontSize: '11px', color: 'var(--text-4, #52525b)', marginTop: 2 }}>
+                                {stats?.pendingDrivers ?? pendingDrivers.length} {isAr ? 'بانتظار المراجعة' : 'awaiting review'}
+                            </p>
+                        </div>
+                        <Link href="/drivers?tab=pending" style={{ fontSize: '11px', color: '#818cf8', textDecoration: 'none' }}>
+                            {isAr ? 'عرض الكل' : 'View all'}
+                        </Link>
+                    </div>
+
+                    {pendingDrivers.length === 0 ? (
+                        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-4, #3f3f46)', fontSize: '13px' }}>
+                            {isAr ? 'لا يوجد طلبات معلّقة' : 'No pending applications'}
+                        </div>
+                    ) : (
+                        pendingDrivers.map((driver) => (
+                            <div
+                                key={driver.id}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '12px 20px',
+                                    borderBottom: '1px solid var(--border, rgba(255,255,255,0.04))',
+                                    gap: 12,
+                                }}
+                            >
+                                <div
+                                    style={{ flex: 1, cursor: 'pointer' }}
+                                    onClick={() => router.push(`/drivers/${driver.id}`)}
+                                >
+                                    <p style={{ fontSize: '13px', color: 'var(--text-1, #e4e4e7)', fontWeight: '600' }}>
+                                        {(driver.firstName || driver.lastName)
+                                            ? `${driver.firstName ?? ''} ${driver.lastName ?? ''}`.trim()
+                                            : driver.phone}
+                                    </p>
+                                    <p style={{ fontSize: '11px', color: 'var(--text-4, #52525b)' }}>
+                                        {driver.phone} · {formatRelativeTime(driver.createdAt)}
+                                    </p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{
+                                        fontSize: '10px',
+                                        padding: '3px 8px',
+                                        borderRadius: '20px',
+                                        background: 'rgba(245,158,11,0.1)',
+                                        color: '#fbbf24',
+                                    }}>
+                                        {t.pending}
+                                    </span>
+                                    <button
+                                        onClick={() => handleApprove(driver.id)}
+                                        disabled={approvingId === driver.id}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: 8,
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            background: 'rgba(34,197,94,0.15)',
+                                            border: '1px solid rgba(34,197,94,0.3)',
+                                            color: '#4ade80',
+                                            cursor: approvingId === driver.id ? 'wait' : 'pointer',
+                                        }}
+                                    >
+                                        {approvingId === driver.id ? '...' : (isAr ? 'قبول' : 'Approve')}
+                                    </button>
+                                    <button
+                                        onClick={() => router.push(`/drivers/${driver.id}`)}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: 8,
+                                            fontSize: 11,
+                                            background: 'var(--bg-hover, rgba(255,255,255,0.04))',
+                                            border: '1px solid var(--border, rgba(255,255,255,0.08))',
+                                            color: 'var(--text-2, #a1a1aa)',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {t.view}
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
                 {/* Stats Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '20px' }}>
                     {statCards.map((card) => (
@@ -148,7 +285,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Bottom Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px', marginBottom: '16px' }}>
 
                     {/* Recent Rides */}
                     <div style={{
@@ -269,6 +406,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </div>
+
             </div>
 
             <style>{`

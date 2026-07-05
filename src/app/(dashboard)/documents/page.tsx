@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import Image from 'next/image';
 import { useI18n } from '@/lib/i18n';
 import { Header } from '@/components/layout/Header';
 import { documentsApi } from '@/lib/api';
+import { approveDriverFull } from '@/lib/approve-driver';
 import { formatRelativeTime } from '@/lib/utils';
 import type { DriverDocument } from '@/lib/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+import { AdminMediaImage, adminMediaSrc } from '@/components/ui/AdminMediaImage';
 
 export default function DocumentsPage() {
     const router = useRouter();
@@ -21,6 +21,7 @@ export default function DocumentsPage() {
     const [actionLoad, setActionLoad] = useState(false);
     const [rejectModal, setRejectModal] = useState(false);
     const [rejectTarget, setRejectTarget] = useState<DriverDocument | null>(null);
+    const [rejectField, setRejectField] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState('');
 
     async function load() {
@@ -33,6 +34,19 @@ export default function DocumentsPage() {
     }
 
     useEffect(() => { load(); }, [filter]);
+
+    async function handleApproveDriver(doc: DriverDocument) {
+        setActionLoad(true);
+        try {
+            await approveDriverFull(doc.driver.id);
+            toast.success(isAr ? 'تم قبول السائق بالكامل' : 'Driver fully approved');
+            load();
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message ?? 'Failed');
+        } finally {
+            setActionLoad(false);
+        }
+    }
 
     async function handleApprove(doc: DriverDocument) {
         setActionLoad(true);
@@ -48,13 +62,42 @@ export default function DocumentsPage() {
         if (!rejectTarget) return;
         setActionLoad(true);
         try {
-            await documentsApi.reject(rejectTarget.driver.id, rejectReason);
-            toast.success(isAr ? 'تم الرفض' : 'Rejected');
+            if (rejectField) {
+                await documentsApi.rejectFields(rejectTarget.driver.id, {
+                    fields: [rejectField],
+                    reason: rejectReason || undefined,
+                });
+                toast.success(isAr ? 'تم طلب إعادة رفع الوثيقة' : 'Resubmit requested');
+            } else {
+                await documentsApi.reject(rejectTarget.driver.id, rejectReason);
+                toast.success(isAr ? 'تم الرفض' : 'Rejected');
+            }
             setRejectModal(false);
+            setRejectField(null);
             load();
-        } catch { toast.error('Failed'); }
-        finally { setActionLoad(false); }
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message ?? 'Failed');
+        } finally {
+            setActionLoad(false);
+        }
     }
+
+    function openRejectField(doc: DriverDocument, field: string) {
+        setRejectTarget(doc);
+        setRejectField(field);
+        setRejectReason(doc.rejectedFields?.[field] ?? '');
+        setRejectModal(true);
+    }
+
+    function openRejectAll(doc: DriverDocument) {
+        setRejectTarget(doc);
+        setRejectField(null);
+        setRejectReason('');
+        setRejectModal(true);
+    }
+
+    const hasResubmit = (doc: DriverDocument) =>
+        doc.rejectedFields && Object.keys(doc.rejectedFields).length > 0;
 
     const reviewStyle: Record<string, { bg: string; color: string }> = {
         PENDING: { bg: 'rgba(245,158,11,0.1)', color: '#fbbf24' },
@@ -173,13 +216,33 @@ export default function DocumentsPage() {
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                         <span style={{
                                             fontSize: '11px', padding: '3px 8px', borderRadius: '20px',
-                                            background: reviewStyle[doc.reviewStatus]?.bg ?? reviewStyle.PENDING.bg,
-                                            color: reviewStyle[doc.reviewStatus]?.color ?? reviewStyle.PENDING.color,
+                                            background: hasResubmit(doc)
+                                                ? 'rgba(245,158,11,0.15)'
+                                                : reviewStyle[doc.reviewStatus]?.bg ?? reviewStyle.PENDING.bg,
+                                            color: hasResubmit(doc)
+                                                ? '#fbbf24'
+                                                : reviewStyle[doc.reviewStatus]?.color ?? reviewStyle.PENDING.color,
                                         }}>
-                                            {doc.reviewStatus === 'PENDING' ? t.pending
-                                                : doc.reviewStatus === 'APPROVED' ? t.approved
-                                                    : t.rejected}
+                                            {hasResubmit(doc)
+                                                ? (isAr ? 'بانتظار إعادة الرفع' : 'Awaiting resubmit')
+                                                : doc.reviewStatus === 'PENDING' ? t.pending
+                                                    : doc.reviewStatus === 'APPROVED' ? t.approved
+                                                        : t.rejected}
                                         </span>
+                                        {!doc.driver.isApproved && (
+                                            <button
+                                                onClick={() => handleApproveDriver(doc)}
+                                                disabled={actionLoad || !!hasResubmit(doc)}
+                                                style={{
+                                                    padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600',
+                                                    background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
+                                                    color: '#a5b4fc', cursor: (actionLoad || hasResubmit(doc)) ? 'not-allowed' : 'pointer',
+                                                    opacity: hasResubmit(doc) ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {isAr ? 'قبول السائق' : 'Approve driver'}
+                                            </button>
+                                        )}
                                         <button onClick={() => router.push(`/drivers/${doc.driver.id}`)} style={{
                                             padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
                                             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
@@ -189,14 +252,15 @@ export default function DocumentsPage() {
                                         </button>
                                         {doc.reviewStatus === 'PENDING' && (
                                             <>
-                                                <button onClick={() => handleApprove(doc)} disabled={actionLoad} style={{
+                                                <button onClick={() => handleApprove(doc)} disabled={actionLoad || !!hasResubmit(doc)} style={{
                                                     padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '500',
                                                     background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)',
-                                                    color: '#4ade80', cursor: 'pointer',
+                                                    color: '#4ade80', cursor: (actionLoad || hasResubmit(doc)) ? 'not-allowed' : 'pointer',
+                                                    opacity: hasResubmit(doc) ? 0.5 : 1,
                                                 }}>
                                                     {t.approve}
                                                 </button>
-                                                <button onClick={() => { setRejectTarget(doc); setRejectReason(''); setRejectModal(true); }} style={{
+                                                <button onClick={() => openRejectAll(doc)} style={{
                                                     padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '500',
                                                     background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)',
                                                     color: '#f87171', cursor: 'pointer',
@@ -212,30 +276,66 @@ export default function DocumentsPage() {
                                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                                     {docFields.map(({ key, label }) => {
                                         const url = (doc as any)[key];
-
-                                        const isValidUrl = (url: any) => {
-                                            return url && url !== 'undefined' && url !== 'null';
-                                        };
+                                        const fieldRejected = doc.rejectedFields?.[key];
+                                        const isValidUrl = (u: any) => u && u !== 'undefined' && u !== 'null';
                                         return (
                                             <div key={key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                                                 {isValidUrl(url) ? (
-                                                    <a href={`${API_URL}${url}`} target="_blank" rel="noreferrer">
-                                                        <div style={{
-                                                            width: '72px',
-                                                            height: '56px',
-                                                            borderRadius: '8px',
-                                                            overflow: 'hidden',
-                                                            border: '1px solid rgba(255,255,255,0.1)',
-                                                            position: 'relative',
-                                                        }}>
-                                                            <img
-                                                                src={`${API_URL}${url}`}
-                                                                alt={label}
-                                                                //fill
-                                                                style={{ objectFit: 'cover' }}
-                                                            />
-                                                        </div>
-                                                    </a>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <a href={adminMediaSrc(url) ?? '#'} target="_blank" rel="noreferrer">
+                                                            <div style={{
+                                                                width: '72px',
+                                                                height: '56px',
+                                                                borderRadius: '8px',
+                                                                overflow: 'hidden',
+                                                                border: fieldRejected
+                                                                    ? '2px solid #ef4444'
+                                                                    : '1px solid rgba(255,255,255,0.1)',
+                                                                position: 'relative',
+                                                            }}>
+                                                                <AdminMediaImage
+                                                                    path={url}
+                                                                    alt={label}
+                                                                    width="100%"
+                                                                    height="100%"
+                                                                />
+                                                            </div>
+                                                        </a>
+                                                        {doc.reviewStatus === 'PENDING' && (
+                                                            <button
+                                                                title={isAr ? 'رفض هذه الوثيقة' : 'Reject this document'}
+                                                                onClick={() => openRejectField(doc, key)}
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: -6,
+                                                                    right: -6,
+                                                                    width: 20,
+                                                                    height: 20,
+                                                                    borderRadius: '50%',
+                                                                    border: 'none',
+                                                                    background: '#ef4444',
+                                                                    color: '#fff',
+                                                                    fontSize: 12,
+                                                                    cursor: 'pointer',
+                                                                    lineHeight: '20px',
+                                                                }}
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ) : fieldRejected ? (
+                                                    <div style={{
+                                                        width: '72px', height: '56px', borderRadius: '8px',
+                                                        background: 'rgba(239,68,68,0.08)',
+                                                        border: '2px dashed #ef4444',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        padding: 4,
+                                                    }}>
+                                                        <span style={{ fontSize: 9, color: '#f87171', textAlign: 'center' }}>
+                                                            {isAr ? 'بانتظار إعادة الرفع' : 'Resubmit'}
+                                                        </span>
+                                                    </div>
                                                 ) : (
                                                     <div style={{
                                                         width: '72px', height: '56px', borderRadius: '8px',
@@ -249,8 +349,18 @@ export default function DocumentsPage() {
                                                         </svg>
                                                     </div>
                                                 )}
-                                                <span style={{ fontSize: '10px', color: url ? '#71717a' : '#3f3f46', textAlign: 'center', maxWidth: '72px' }}>
+                                                <span style={{
+                                                    fontSize: '10px',
+                                                    color: fieldRejected ? '#f87171' : url ? '#71717a' : '#3f3f46',
+                                                    textAlign: 'center',
+                                                    maxWidth: '72px',
+                                                }}>
                                                     {label}
+                                                    {fieldRejected && (
+                                                        <span style={{ display: 'block', marginTop: 2 }}>
+                                                            {fieldRejected}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             </div>
                                         );
@@ -264,10 +374,24 @@ export default function DocumentsPage() {
 
             {/* Reject Modal */}
             {rejectModal && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={() => setRejectModal(false)}>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={() => { setRejectModal(false); setRejectField(null); }}>
                     <div style={{ width: '100%', maxWidth: '420px', background: '#111114', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '28px', boxShadow: '0 32px 80px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>{t.rejectDocs}</h3>
-                        <p style={{ fontSize: '13px', color: '#71717a', marginBottom: '20px', fontFamily: 'monospace' }}>{rejectTarget?.driver.phone}</p>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>
+                            {rejectField
+                                ? (isAr ? 'رفض وثيقة واحدة' : 'Reject single document')
+                                : t.rejectDocs}
+                        </h3>
+                        <p style={{ fontSize: '13px', color: '#71717a', marginBottom: '20px', fontFamily: 'monospace' }}>
+                            {rejectTarget?.driver.phone}
+                            {rejectField && ` · ${rejectField}`}
+                        </p>
+                        {rejectField && (
+                            <p style={{ fontSize: '12px', color: '#fbbf24', marginBottom: '12px' }}>
+                                {isAr
+                                    ? 'السائق يبقى معلّقاً وسيصله إشعار لإعادة رفع هذه الوثيقة فقط.'
+                                    : 'Driver stays pending and gets notified to re-upload this document only.'}
+                            </p>
+                        )}
                         <label style={{ fontSize: '11px', fontWeight: '600', color: '#71717a', letterSpacing: '0.06em', display: 'block', marginBottom: '8px' }}>
                             {t.reason.toUpperCase()}
                         </label>
@@ -277,11 +401,11 @@ export default function DocumentsPage() {
                             style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#e4e4e7', fontSize: '13px', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                         />
                         <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
-                            <button onClick={() => setRejectModal(false)} style={{ flex: 1, height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', fontSize: '13px', cursor: 'pointer' }}>
+                            <button onClick={() => { setRejectModal(false); setRejectField(null); }} style={{ flex: 1, height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', fontSize: '13px', cursor: 'pointer' }}>
                                 {t.cancel}
                             </button>
                             <button onClick={handleReject} disabled={actionLoad} style={{ flex: 1, height: '40px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-                                {actionLoad ? '...' : t.reject}
+                                {actionLoad ? '...' : rejectField ? (isAr ? 'طلب إعادة الرفع' : 'Request resubmit') : t.reject}
                             </button>
                         </div>
                     </div>

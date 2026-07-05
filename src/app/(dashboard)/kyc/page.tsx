@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { kycApi } from '@/lib/api';
+import { approveDriverFull } from '@/lib/approve-driver';
 import { useI18n } from '@/lib/i18n';
 
 const TABS = ['pending', 'in_review', 'approved', 'rejected', 'all'] as const;
@@ -31,8 +32,8 @@ export default function KycPage() {
 
     async function approve(driverId: number) {
         try {
-            await kycApi.approve(driverId);
-            toast.success(isAr ? 'تمت الموافقة' : 'Approved');
+            await approveDriverFull(driverId);
+            toast.success(isAr ? 'تم قبول السائق بالكامل' : 'Driver fully approved');
             load();
         } catch (e: any) {
             toast.error(e.response?.data?.message ?? 'Failed');

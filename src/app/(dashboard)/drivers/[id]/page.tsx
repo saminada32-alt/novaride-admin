@@ -1,21 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Header } from '@/components/layout/Header';
 import { driversApi, documentsApi } from '@/lib/api';
+import { approveDriverFull } from '@/lib/approve-driver';
 import type { Driver, DriverDocument } from '@/lib/types';
 import { useI18n } from '@/lib/i18n';
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
-
-const toUrl = (p?: string | null) =>
-    !p || p === 'undefined' || p === 'null'
-        ? null
-        : p.startsWith('http')
-            ? p
-            : `${BASE}${p}`;
+import { AdminMediaImage, adminMediaSrc } from '@/components/ui/AdminMediaImage';
 
 const Card = ({ title, icon, children }: any) => (
     <div style={{
@@ -79,21 +72,18 @@ const Status = ({ driver }: { driver: Driver }) => {
 
 const Doc = ({ src, label }: any) => {
     const [open, setOpen] = useState(false);
-    const url = toUrl(src);
+    const url = adminMediaSrc(src);
 
     return (
         <>
             <div onClick={() => url && setOpen(true)} style={{
-                cursor: 'pointer',
+                cursor: url ? 'pointer' : 'default',
                 borderRadius: 10,
                 overflow: 'hidden',
                 border: '1px solid rgba(255,255,255,0.08)',
                 background: '#111'
             }}>
-                <img
-                    src={url || '/placeholder.png'}
-                    style={{ width: '100%', height: 90, objectFit: 'cover' }}
-                />
+                <AdminMediaImage path={src} width="100%" height={90} />
                 <div style={{
                     padding: 6,
                     fontSize: 11,
@@ -104,7 +94,7 @@ const Doc = ({ src, label }: any) => {
                 </div>
             </div>
 
-            {open && (
+            {open && url && (
                 <div onClick={() => setOpen(false)} style={{
                     position: 'fixed',
                     inset: 0,
@@ -114,7 +104,7 @@ const Doc = ({ src, label }: any) => {
                     justifyContent: 'center',
                     zIndex: 50
                 }}>
-                    <img src={url || '/placeholder.png'} style={{ maxWidth: '85%', maxHeight: '85%' }} />
+                    <img src={url} alt={label} style={{ maxWidth: '85%', maxHeight: '85%' }} />
                 </div>
             )}
         </>
@@ -123,33 +113,78 @@ const Doc = ({ src, label }: any) => {
 
 export default function DriverDetailPage() {
     const { id } = useParams();
+    const router = useRouter();
     const { isAr } = useI18n();
 
     const [driver, setDriver] = useState<Driver | null>(null);
     const [doc, setDoc] = useState<DriverDocument | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     useEffect(() => {
         (async () => {
+            setLoading(true);
+            setLoadError(null);
             try {
-                const [d, docRes] = await Promise.all([
-                    driversApi.getOne(Number(id)),
-                    documentsApi.getByDriver(Number(id)),
-                ]);
+                const d = await driversApi.getOne(Number(id));
                 setDriver(d.data);
-                setDoc(docRes.data);
-            } catch {
-                toast.error('error loading');
+                try {
+                    const docRes = await documentsApi.getByDriver(Number(id));
+                    setDoc(docRes.data);
+                } catch {
+                    setDoc(null);
+                }
+            } catch (e: any) {
+                const msg = e?.response?.data?.message ?? e?.message ?? 'Failed to load driver';
+                setLoadError(Array.isArray(msg) ? msg.join(', ') : String(msg));
+                toast.error(isAr ? 'تعذّر تحميل بيانات السائق' : 'Failed to load driver');
             } finally {
                 setLoading(false);
             }
         })();
-    }, [id]);
+    }, [id, isAr]);
 
-    if (loading) return <div style={{ color: '#fff' }}>Loading...</div>;
-    if (!driver) return null;
+    if (loading) return <div style={{ color: '#fff', padding: 24 }}>Loading...</div>;
 
-    const docData = doc || (driver as any).documents;
+    if (!driver) {
+        return (
+            <div style={{ minHeight: '100vh', background: '#0b0b10', padding: 24, color: '#fff' }}>
+                <Header />
+                <div style={{
+                    marginTop: 40,
+                    padding: 24,
+                    borderRadius: 16,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.03)',
+                    textAlign: 'center',
+                }}>
+                    <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
+                        {isAr ? 'تعذّر تحميل السائق' : 'Could not load driver'}
+                    </p>
+                    <p style={{ fontSize: 13, color: '#a1a1aa', marginBottom: 16 }}>{loadError}</p>
+                    <button
+                        onClick={() => router.push('/drivers')}
+                        style={{
+                            padding: '10px 16px',
+                            borderRadius: 10,
+                            border: 'none',
+                            background: '#6366f1',
+                            color: '#fff',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        {isAr ? 'العودة للسائقين' : 'Back to drivers'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const embeddedDoc = Array.isArray((driver as any).documents)
+        ? (driver as any).documents[0]
+        : (driver as any).documents;
+    const docData = doc ?? embeddedDoc ?? null;
     const vehicle = (driver as any).vehicles?.[0];
     const loc = (driver as any).locationHistory?.[0];
 
@@ -204,6 +239,17 @@ export default function DriverDetailPage() {
         }
     }
 
+    async function approveDriver() {
+        try {
+            await approveDriverFull(Number(id));
+            toast.success(isAr ? 'تم قبول السائق' : 'Driver approved');
+            const d = await driversApi.getOne(Number(id));
+            setDriver(d.data);
+        } catch (e: any) {
+            toast.error(e.response?.data?.message ?? 'Failed');
+        }
+    }
+
     const approvedDays =
         approvedAt
             ? Math.floor((Date.now() - new Date(approvedAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -233,14 +279,11 @@ export default function DriverDetailPage() {
                 border: '1px solid rgba(255,255,255,0.08)'
             }}>
                 <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                    <img
-                        src={toUrl(docData?.driverPhoto) || '/placeholder.png'}
-                        style={{
-                            width: 70,
-                            height: 70,
-                            borderRadius: 14,
-                            border: '2px solid #a78bfa'
-                        }}
+                    <AdminMediaImage
+                        path={docData?.driverPhoto}
+                        width={70}
+                        height={70}
+                        style={{ borderRadius: 14, border: '2px solid #a78bfa' }}
                     />
 
                     <div>
@@ -269,6 +312,23 @@ export default function DriverDetailPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
                     <Status driver={driver} />
+                    {!driver.isApproved && !driver.isRejected && (
+                        <button
+                            onClick={approveDriver}
+                            style={{
+                                background: 'rgba(34,197,94,0.2)',
+                                border: '1px solid rgba(34,197,94,0.4)',
+                                color: '#4ade80',
+                                padding: '8px 16px',
+                                borderRadius: 8,
+                                cursor: 'pointer',
+                                fontSize: 13,
+                                fontWeight: 700,
+                            }}
+                        >
+                            {isAr ? 'قبول السائق' : 'Approve driver'}
+                        </button>
+                    )}
                     {suspendedAt ? (
                         <button
                             onClick={unsuspendDriver}
@@ -415,6 +475,24 @@ export default function DriverDetailPage() {
 
                 <Card title="📄 الوثائق" icon="📄">
                     <Row label="عدد الوثائق" value={`${docCount} / 7`} />
+                    {docData?.rejectedFields && Object.keys(docData.rejectedFields).length > 0 && (
+                        <div style={{
+                            marginBottom: 10,
+                            padding: 10,
+                            borderRadius: 10,
+                            background: 'rgba(239,68,68,0.08)',
+                            border: '1px solid rgba(239,68,68,0.2)',
+                            fontSize: 12,
+                            color: '#fca5a5',
+                        }}>
+                            {isAr ? 'وثائق مطلوب إعادة رفعها:' : 'Documents awaiting resubmit:'}
+                            <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                                {Object.entries(docData.rejectedFields).map(([field, reason]) => (
+                                    <li key={field}>{field}: {String(reason)}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
                     <div style={{
                         display: 'grid',
