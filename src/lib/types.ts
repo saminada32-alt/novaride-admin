@@ -65,6 +65,7 @@ export interface DriverDocument {
     driverPhoto?: string;
     reviewStatus: ReviewStatus;
     rejectionReason?: string;
+    rejectedFields?: Record<string, string> | null;
     createdAt: string;
     driver: Driver;
 }

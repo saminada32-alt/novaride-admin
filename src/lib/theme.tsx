@@ -77,17 +77,17 @@ export const MODES: Record<PanelMode, Record<string, string>> = {
         '--header-bg': 'rgba(26,26,36,0.92)',
     },
     light: {
-        '--bg': '#f4f4f8',
-        '--bg-card': '#22222e',
-        '--bg-hover': '#2a2a38',
-        '--border': 'rgba(0,0,0,0.08)',
-        '--border-2': 'rgba(0,0,0,0.14)',
+        '--bg': '#eef0f4',
+        '--bg-card': '#ffffff',
+        '--bg-hover': '#e4e7ee',
+        '--border': 'rgba(0,0,0,0.09)',
+        '--border-2': 'rgba(0,0,0,0.16)',
         '--text-1': '#111118',
-        '--text-2': '#4a4a5a',
-        '--text-3': '#050507',
-        '--text-4': '#060608',
-        '--sidebar-bg': 'rgba(26,26,36,0.97)',
-        '--header-bg': 'rgba(2,2,8,0.92)',
+        '--text-2': '#3f3f4a',
+        '--text-3': '#5c5c6a',
+        '--text-4': '#8b8b9a',
+        '--sidebar-bg': 'rgba(255,255,255,0.98)',
+        '--header-bg': 'rgba(255,255,255,0.95)',
     },
 };
 
@@ -177,6 +177,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
         // Save
         localStorage.setItem('nr_theme', JSON.stringify(theme));
+        root.setAttribute('data-theme', theme.mode);
     }, [theme]);
 
     function update(patch: Partial<ThemeSettings>) {

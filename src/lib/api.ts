@@ -1,24 +1,28 @@
 import axios, { AxiosInstance } from 'axios';
 import { auth } from './auth';
 
-const API_URL =
-    typeof window === 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000')
-        : '/api/proxy';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 const createClient = (): AxiosInstance => {
     const client = axios.create({
         baseURL: API_URL,
         timeout: 15000,
         headers: { 'Content-Type': 'application/json' },
-        withCredentials: true,
+    });
+
+    client.interceptors.request.use((config) => {
+        const token = auth.getToken();
+        if (token) config.headers.Authorization = `Bearer ${token}`;
+        return config;
     });
 
     client.interceptors.response.use(
         (res) => res,
         async (err) => {
-            if (err.response?.status === 401 && typeof window !== 'undefined') {
-                await auth.clear();
+            const url = String(err.config?.url ?? '');
+            const isLogin = url.includes('/admin/login');
+            if (err.response?.status === 401 && typeof window !== 'undefined' && !isLogin) {
+                auth.clear();
                 window.location.href = '/login';
             }
             return Promise.reject(err);
@@ -34,19 +38,7 @@ export const api = createClient();
 
 export const adminApi = {
     login: (email: string, password: string, totpCode?: string) =>
-        fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, totpCode }),
-        }).then(async (res) => {
-            const data = await res.json();
-            if (!res.ok) {
-                const err: any = new Error(data.message ?? 'Login failed');
-                err.response = { data, status: res.status };
-                throw err;
-            }
-            return { data };
-        }),
+        api.post('/admin/login', { email, password, totpCode }),
     getMe: () => api.get('/admin/me'),
 };
 

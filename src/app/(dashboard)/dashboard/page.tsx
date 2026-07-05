@@ -12,6 +12,7 @@ import { formatCurrency, formatRelativeTime } from '@/lib/utils';
 import { driversApi } from '@/lib/api';
 import { approveDriverFull } from '@/lib/approve-driver';
 import type { Driver } from '@/lib/types';
+import { panel } from '@/lib/panel-styles';
 
 const STATUS_COLORS: any = {
     SEARCHING: { bg: 'rgba(245,158,11,0.1)', text: '#fbbf24' },
@@ -112,18 +113,17 @@ export default function DashboardPage() {
     return (
         <>
             <Header title={t.dashboard} />
-            <div style={{ padding: '28px 32px', maxWidth: '1400px', margin: '0 auto' }}>
+            <div style={panel.page}>
 
                 {/* System Status */}
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap',
                     padding: '11px 18px',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    ...panel.cardSubtle,
                     borderRadius: '12px', marginBottom: '24px',
                     fontSize: '12px',
                 }}>
-                    <span style={{ color: '#52525b', fontWeight: '600' }}>{t.systemStatus}</span>
+                    <span style={{ ...panel.textMuted, fontWeight: '600' }}>{t.systemStatus}</span>
 
                     {[
                         { label: 'Database', status: health?.db },
@@ -141,7 +141,7 @@ export default function DashboardPage() {
                         </div>
                     ))}
 
-                    <span style={{ color: '#3f3f46', marginLeft: 'auto' }}>
+                    <span style={{ ...panel.textFaint, marginLeft: 'auto' }}>
                         {t.uptime} {health
                             ? `${Math.floor(health.uptime / 3600)}h ${Math.floor((health.uptime % 3600) / 60)}m`
                             : '—'}
@@ -150,24 +150,22 @@ export default function DashboardPage() {
 
                 {/* Pending driver approvals — prominent at top */}
                 <div style={{
-                    background: 'var(--bg-card, rgba(255,255,255,0.02))',
-                    border: '1px solid var(--border, rgba(255,255,255,0.07))',
-                    borderRadius: '16px',
+                    ...panel.card,
                     overflow: 'hidden',
                     marginBottom: '24px',
                 }}>
                     <div style={{
                         padding: '16px 20px',
-                        borderBottom: '1px solid var(--border, rgba(255,255,255,0.06))',
+                        borderBottom: '1px solid var(--border)',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                     }}>
                         <div>
-                            <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-1, #e4e4e7)' }}>
+                            <p style={{ fontSize: '14px', fontWeight: '700', ...panel.text }}>
                                 {isAr ? 'طلبات السائقين المعلّقة' : 'Pending driver applications'}
                             </p>
-                            <p style={{ fontSize: '11px', color: 'var(--text-4, #52525b)', marginTop: 2 }}>
+                            <p style={{ fontSize: '11px', ...panel.textMuted, marginTop: 2 }}>
                                 {stats?.pendingDrivers ?? pendingDrivers.length} {isAr ? 'بانتظار المراجعة' : 'awaiting review'}
                             </p>
                         </div>
@@ -177,7 +175,7 @@ export default function DashboardPage() {
                     </div>
 
                     {pendingDrivers.length === 0 ? (
-                        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-4, #3f3f46)', fontSize: '13px' }}>
+                        <div style={{ padding: '32px', textAlign: 'center', ...panel.textMuted, fontSize: '13px' }}>
                             {isAr ? 'لا يوجد طلبات معلّقة' : 'No pending applications'}
                         </div>
                     ) : (
@@ -189,7 +187,7 @@ export default function DashboardPage() {
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
                                     padding: '12px 20px',
-                                    borderBottom: '1px solid var(--border, rgba(255,255,255,0.04))',
+                                    borderBottom: '1px solid var(--border)',
                                     gap: 12,
                                 }}
                             >
@@ -197,12 +195,12 @@ export default function DashboardPage() {
                                     style={{ flex: 1, cursor: 'pointer' }}
                                     onClick={() => router.push(`/drivers/${driver.id}`)}
                                 >
-                                    <p style={{ fontSize: '13px', color: 'var(--text-1, #e4e4e7)', fontWeight: '600' }}>
+                                    <p style={{ fontSize: '13px', ...panel.text, fontWeight: '600' }}>
                                         {(driver.firstName || driver.lastName)
                                             ? `${driver.firstName ?? ''} ${driver.lastName ?? ''}`.trim()
                                             : driver.phone}
                                     </p>
-                                    <p style={{ fontSize: '11px', color: 'var(--text-4, #52525b)' }}>
+                                    <p style={{ fontSize: '11px', ...panel.textMuted }}>
                                         {driver.phone} · {formatRelativeTime(driver.createdAt)}
                                     </p>
                                 </div>
@@ -238,9 +236,9 @@ export default function DashboardPage() {
                                             padding: '6px 12px',
                                             borderRadius: 8,
                                             fontSize: 11,
-                                            background: 'var(--bg-hover, rgba(255,255,255,0.04))',
-                                            border: '1px solid var(--border, rgba(255,255,255,0.08))',
-                                            color: 'var(--text-2, #a1a1aa)',
+                                            background: 'var(--bg-hover)',
+                                            border: '1px solid var(--border)',
+                                            color: 'var(--text-2)',
                                             cursor: 'pointer',
                                         }}
                                     >
@@ -256,16 +254,12 @@ export default function DashboardPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '20px' }}>
                     {statCards.map((card) => (
                         <div key={card.title} style={{
-                            background: 'rgba(255,255,255,0.02)',
-                            border: '1px solid rgba(255,255,255,0.07)',
-                            borderRadius: '16px', padding: '20px',
+                            ...panel.card,
+                            padding: '20px',
                             transition: 'border-color 0.2s',
-                        }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
-                        >
+                        }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
-                                <p style={{ fontSize: '11px', fontWeight: '600', color: '#52525b', letterSpacing: '0.06em' }}>
+                                <p style={{ fontSize: '11px', fontWeight: '600', ...panel.textMuted, letterSpacing: '0.06em' }}>
                                     {card.title}
                                 </p>
                                 <div style={{
@@ -276,10 +270,10 @@ export default function DashboardPage() {
                                     {card.icon}
                                 </div>
                             </div>
-                            <p style={{ fontSize: '30px', fontWeight: '800', color: '#fff', letterSpacing: '-1px', lineHeight: 1 }}>
+                            <p style={{ fontSize: '30px', fontWeight: '800', color: 'var(--text-1)', letterSpacing: '-1px', lineHeight: 1 }}>
                                 {card.value.toLocaleString()}
                             </p>
-                            <p style={{ fontSize: '11px', color: '#3f3f46', marginTop: '6px' }}>{card.change}</p>
+                            <p style={{ fontSize: '11px', ...panel.textFaint, marginTop: '6px' }}>{card.change}</p>
                         </div>
                     ))}
                 </div>
@@ -288,26 +282,22 @@ export default function DashboardPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px', marginBottom: '16px' }}>
 
                     {/* Recent Rides */}
-                    <div style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                        borderRadius: '16px', overflow: 'hidden',
-                    }}>
+                    <div style={{ ...panel.card, overflow: 'hidden' }}>
                         <div style={{
                             padding: '16px 20px',
-                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            borderBottom: '1px solid var(--border)',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}>
-                            <p style={{ fontSize: '13px', fontWeight: '600', color: '#e4e4e7' }}>
+                            <p style={{ fontSize: '13px', fontWeight: '600', ...panel.text }}>
                                 {t.recentRides}
                             </p>
-                            <span style={{ fontSize: '11px', color: '#3f3f46' }}>
+                            <span style={{ fontSize: '11px', ...panel.textFaint }}>
                                 {rides.length} {t.total}
                             </span>
                         </div>
 
                         {rides.slice(0, 8).length === 0 ? (
-                            <div style={{ padding: '40px', textAlign: 'center', color: '#3f3f46', fontSize: '13px' }}>
+                            <div style={{ padding: '40px', textAlign: 'center', ...panel.textFaint, fontSize: '13px' }}>
                                 {t.noRidesYet}
                             </div>
                         ) : (
@@ -319,10 +309,10 @@ export default function DashboardPage() {
                                         style={{
                                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                             padding: '11px 20px',
-                                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                            borderBottom: '1px solid var(--border)',
                                             transition: 'background 0.15s', cursor: 'default',
                                         }}
-                                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)'}
+                                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
                                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -340,16 +330,16 @@ export default function DashboardPage() {
                                                 </svg>
                                             </div>
                                             <div>
-                                                <p style={{ fontSize: '13px', color: '#e4e4e7', fontWeight: '500' }}>
+                                                <p style={{ fontSize: '13px', ...panel.text, fontWeight: '500' }}>
                                                     {isAr ? `رحلة` : 'Ride'} #{ride.id}
                                                 </p>
-                                                <p style={{ fontSize: '11px', color: '#52525b' }}>
+                                                <p style={{ fontSize: '11px', ...panel.textMuted }}>
                                                     {formatRelativeTime(ride.createdAt)}
                                                 </p>
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>
+                                            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-1)' }}>
                                                 {formatCurrency(ride.estimatedFare)}
                                             </span>
                                             <span style={{
@@ -367,13 +357,9 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Overview */}
-                    <div style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                        borderRadius: '16px', overflow: 'hidden',
-                    }}>
-                        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                            <p style={{ fontSize: '13px', fontWeight: '600', color: '#e4e4e7' }}>
+                    <div style={{ ...panel.card, overflow: 'hidden' }}>
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+                            <p style={{ fontSize: '13px', fontWeight: '600', ...panel.text }}>
                                 {t.driverOverview}
                             </p>
                         </div>
@@ -383,15 +369,15 @@ export default function DashboardPage() {
                                 return (
                                     <div key={item.label} style={{ marginBottom: '18px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '7px' }}>
-                                            <span style={{ fontSize: '12px', color: '#71717a' }}>{item.label}</span>
+                                            <span style={{ fontSize: '12px', ...panel.textMuted }}>{item.label}</span>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#e4e4e7' }}>
+                                                <span style={{ fontSize: '13px', fontWeight: '700', ...panel.text }}>
                                                     {item.value}
                                                 </span>
-                                                <span style={{ fontSize: '11px', color: '#3f3f46' }}>({pct}%)</span>
+                                                <span style={{ fontSize: '11px', ...panel.textFaint }}>({pct}%)</span>
                                             </div>
                                         </div>
-                                        <div style={{ height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '99px', overflow: 'hidden' }}>
+                                        <div style={{ height: '5px', background: 'var(--bg-hover)', borderRadius: '99px', overflow: 'hidden' }}>
                                             <div style={{
                                                 height: '100%', width: `${pct}%`,
                                                 background: item.color,

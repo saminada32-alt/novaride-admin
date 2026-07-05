@@ -37,6 +37,12 @@ export default function LoginPage() {
             router.replace('/dashboard');
         } catch (err: any) {
             const code = err.response?.data?.code;
+            if (!err.response) {
+                toast.error(isAr
+                    ? 'تعذّر الاتصال بالسيرفر. تأكد من نشر الأدمن بآخر إصلاح.'
+                    : 'Cannot reach API server. Redeploy admin with the latest login fix.');
+                return;
+            }
             if (code === 'MFA_SETUP_REQUIRED') {
                 toast.error('MFA setup required. Contact superadmin or use Settings after login.');
             } else {

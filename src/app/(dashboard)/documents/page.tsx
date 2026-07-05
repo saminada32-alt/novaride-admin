@@ -11,6 +11,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { DriverDocument } from '@/lib/types';
 
 import { AdminMediaImage, adminMediaSrc } from '@/components/ui/AdminMediaImage';
+import { panel } from '@/lib/panel-styles';
 
 export default function DocumentsPage() {
     const router = useRouter();
@@ -28,9 +29,14 @@ export default function DocumentsPage() {
         setLoading(true);
         try {
             const res = await documentsApi.getAll(filter);
-            setDocs(res.data);
-        } catch { toast.error('Failed'); }
-        finally { setLoading(false); }
+            const rows = Array.isArray(res.data) ? res.data : (res.data as any)?.data ?? [];
+            setDocs(rows);
+        } catch (e: any) {
+            const msg = e?.response?.data?.message ?? e?.message ?? 'Failed';
+            toast.error(isAr ? `تعذّر تحميل الوثائق: ${msg}` : `Failed to load documents: ${msg}`);
+        } finally {
+            setLoading(false);
+        }
     }
 
     useEffect(() => { load(); }, [filter]);
@@ -125,13 +131,13 @@ export default function DocumentsPage() {
     return (
         <>
             <Header title={t.documents} />
-            <div style={{ padding: '28px 32px', maxWidth: '1400px', margin: '0 auto' }}>
+            <div style={panel.page}>
 
                 <div style={{ marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>
+                    <h2 style={panel.title}>
                         {t.documentReview}
                     </h2>
-                    <p style={{ fontSize: '13px', color: '#52525b' }}>
+                    <p style={panel.subtitle}>
                         {docs.length} {filter === 'PENDING' ? t.pendingReviewDesc : (isAr ? 'وثائق' : 'documents')}
                     </p>
                 </div>
@@ -141,12 +147,7 @@ export default function DocumentsPage() {
                         <button
                             key={f.key}
                             onClick={() => setFilter(f.key)}
-                            style={{
-                                padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 700,
-                                border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
-                                background: filter === f.key ? '#6366f1' : 'rgba(255,255,255,0.04)',
-                                color: filter === f.key ? '#fff' : '#a1a1aa',
-                            }}
+                            style={panel.tab(filter === f.key)}
                         >
                             {f.label}
                         </button>
@@ -154,14 +155,9 @@ export default function DocumentsPage() {
                 </div>
 
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: '60px', color: '#52525b' }}>...</div>
+                    <div style={{ textAlign: 'center', padding: '60px', ...panel.textMuted }}>...</div>
                 ) : docs.length === 0 ? (
-                    <div style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                        borderRadius: '16px', padding: '60px',
-                        textAlign: 'center',
-                    }}>
+                    <div style={{ ...panel.card, padding: '60px', textAlign: 'center' }}>
                         <div style={{
                             width: '48px', height: '48px',
                             background: 'rgba(34,197,94,0.1)',
@@ -174,19 +170,15 @@ export default function DocumentsPage() {
                                 <polyline points="20 6 9 17 4 12" />
                             </svg>
                         </div>
-                        <p style={{ fontSize: '14px', fontWeight: '600', color: '#e4e4e7', marginBottom: '6px' }}>
+                        <p style={{ fontSize: '14px', fontWeight: '600', ...panel.text, marginBottom: '6px' }}>
                             {t.allCaughtUp}
                         </p>
-                        <p style={{ fontSize: '13px', color: '#52525b' }}>{t.noDocsPending}</p>
+                        <p style={{ fontSize: '13px', ...panel.textMuted }}>{t.noDocsPending}</p>
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {docs.map(doc => (
-                            <div key={doc.id} style={{
-                                background: 'rgba(255,255,255,0.02)',
-                                border: '1px solid rgba(255,255,255,0.07)',
-                                borderRadius: '16px', padding: '20px 24px',
-                            }}>
+                            <div key={doc.id} style={{ ...panel.card, padding: '20px 24px' }}>
                                 {/* Top */}
                                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                                     <div
@@ -202,12 +194,12 @@ export default function DocumentsPage() {
                                             {(doc.driver.firstName?.[0] ?? doc.driver.phone[1]).toUpperCase()}
                                         </div>
                                         <div>
-                                            <p style={{ fontSize: '13px', fontWeight: '600', color: '#e4e4e7' }}>
+                                            <p style={{ fontSize: '13px', fontWeight: '600', ...panel.text }}>
                                                 {doc.driver.firstName && doc.driver.lastName
                                                     ? `${doc.driver.firstName} ${doc.driver.lastName}`
                                                     : doc.driver.phone}
                                             </p>
-                                            <p style={{ fontSize: '11px', color: '#52525b', fontFamily: 'monospace' }}>
+                                            <p style={{ fontSize: '11px', ...panel.textMuted, fontFamily: 'monospace' }}>
                                                 {doc.driver.phone} · {formatRelativeTime(doc.createdAt)}
                                             </p>
                                         </div>
@@ -245,8 +237,8 @@ export default function DocumentsPage() {
                                         )}
                                         <button onClick={() => router.push(`/drivers/${doc.driver.id}`)} style={{
                                             padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
-                                            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                                            color: '#a1a1aa', cursor: 'pointer',
+                                            background: 'var(--bg-hover)', border: '1px solid var(--border)',
+                                            color: 'var(--text-2)', cursor: 'pointer',
                                         }}>
                                             {t.view}
                                         </button>
@@ -290,7 +282,7 @@ export default function DocumentsPage() {
                                                                 overflow: 'hidden',
                                                                 border: fieldRejected
                                                                     ? '2px solid #ef4444'
-                                                                    : '1px solid rgba(255,255,255,0.1)',
+                                                                    : '1px solid var(--border)',
                                                                 position: 'relative',
                                                             }}>
                                                                 <AdminMediaImage
@@ -339,8 +331,8 @@ export default function DocumentsPage() {
                                                 ) : (
                                                     <div style={{
                                                         width: '72px', height: '56px', borderRadius: '8px',
-                                                        background: 'rgba(255,255,255,0.03)',
-                                                        border: '1px solid rgba(255,255,255,0.07)',
+                                                        background: 'var(--bg-hover)',
+                                                        border: '1px solid var(--border)',
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                     }}>
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3f3f46" strokeWidth="2">
@@ -375,13 +367,13 @@ export default function DocumentsPage() {
             {/* Reject Modal */}
             {rejectModal && (
                 <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={() => { setRejectModal(false); setRejectField(null); }}>
-                    <div style={{ width: '100%', maxWidth: '420px', background: '#111114', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '28px', boxShadow: '0 32px 80px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>
+                    <div style={{ width: '100%', maxWidth: '420px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '20px', padding: '28px', boxShadow: '0 32px 80px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', ...panel.text, marginBottom: '8px' }}>
                             {rejectField
                                 ? (isAr ? 'رفض وثيقة واحدة' : 'Reject single document')
                                 : t.rejectDocs}
                         </h3>
-                        <p style={{ fontSize: '13px', color: '#71717a', marginBottom: '20px', fontFamily: 'monospace' }}>
+                        <p style={{ fontSize: '13px', ...panel.textMuted, marginBottom: '20px', fontFamily: 'monospace' }}>
                             {rejectTarget?.driver.phone}
                             {rejectField && ` · ${rejectField}`}
                         </p>
@@ -392,16 +384,16 @@ export default function DocumentsPage() {
                                     : 'Driver stays pending and gets notified to re-upload this document only.'}
                             </p>
                         )}
-                        <label style={{ fontSize: '11px', fontWeight: '600', color: '#71717a', letterSpacing: '0.06em', display: 'block', marginBottom: '8px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '600', ...panel.textMuted, letterSpacing: '0.06em', display: 'block', marginBottom: '8px' }}>
                             {t.reason.toUpperCase()}
                         </label>
                         <textarea
                             value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                             placeholder={t.reasonPlaceholder} rows={3}
-                            style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#e4e4e7', fontSize: '13px', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                            style={{ width: '100%', padding: '12px', background: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-1)', fontSize: '13px', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                         />
                         <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
-                            <button onClick={() => { setRejectModal(false); setRejectField(null); }} style={{ flex: 1, height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', fontSize: '13px', cursor: 'pointer' }}>
+                            <button onClick={() => { setRejectModal(false); setRejectField(null); }} style={{ flex: 1, height: '40px', borderRadius: '10px', background: 'var(--bg-hover)', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer' }}>
                                 {t.cancel}
                             </button>
                             <button onClick={handleReject} disabled={actionLoad} style={{ flex: 1, height: '40px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>

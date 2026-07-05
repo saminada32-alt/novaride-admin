@@ -97,15 +97,15 @@ export function Sidebar() {
             zIndex: 40,
             display: 'flex',
             flexDirection: 'column',
-            background: 'rgba(10,10,15,0.95)',
-            borderRight: '1px solid rgba(255,255,255,0.06)',
+            background: 'var(--sidebar-bg)',
+            borderRight: '1px solid var(--border)',
         }}>
 
             {/* Logo */}
             <div style={{
                 display: 'flex', alignItems: 'center', gap: '12px',
                 padding: '22px 20px',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                borderBottom: '1px solid var(--border)',
             }}>
                 <div style={{
                     width: '36px', height: '36px',
@@ -125,10 +125,10 @@ export function Sidebar() {
                     <p>{t.adminConsole}</p>
                 </div>*/}
                 <div>
-                    <p style={{ fontSize: '15px', fontWeight: '700', color: '#fff', lineHeight: 1.2 }}>
+                    <p style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-1)', lineHeight: 1.2 }}>
                         NovaRide
                     </p>
-                    <p style={{ fontSize: '11px', color: '#52525b' }}>{t.adminConsole}</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-4)' }}>{t.adminConsole}</p>
                 </div>
             </div>
 
@@ -137,7 +137,7 @@ export function Sidebar() {
                 {nav.map((group) => (
                     <div key={group.label} style={{ marginBottom: '20px' }}>
                         <p style={{
-                            fontSize: '10px', fontWeight: '600', color: '#3f3f46',
+                            fontSize: '10px', fontWeight: '600', color: 'var(--text-4)',
                             letterSpacing: '0.08em', padding: '0 10px', marginBottom: '4px',
                         }}>
                             {group.label}
@@ -168,12 +168,12 @@ export function Sidebar() {
                                             padding: '8px 10px', borderRadius: '9px', marginBottom: '1px',
                                             background: active ? 'rgba(99,102,241,0.12)' : 'transparent',
                                             border: `1px solid ${active ? 'rgba(99,102,241,0.2)' : 'transparent'}`,
-                                            color: active ? '#818cf8' : '#71717a',
+                                            color: active ? '#818cf8' : 'var(--text-3)',
                                             fontSize: '13px', fontWeight: active ? '500' : '400',
                                             cursor: 'pointer', transition: 'all 0.15s',
                                         }}
-                                        onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.color = '#a1a1aa'; } }}
-                                        onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#71717a'; } }}
+                                        onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-2)'; } }}
+                                        onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; } }}
                                     >
                                         <span style={{ flexShrink: 0 }}>{icons[href] ?? <span style={{ width: 15, display: 'inline-block' }}>•</span>}</span>
                                         {label}
@@ -187,12 +187,12 @@ export function Sidebar() {
             </nav>
 
             {/* User */}
-            <div style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ padding: '12px', borderTop: '1px solid var(--border)' }}>
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '10px 12px',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    background: 'var(--bg-hover)',
+                    border: '1px solid var(--border)',
                     borderRadius: '10px', marginBottom: '4px',
                 }}>
                     <div style={{
@@ -205,10 +205,10 @@ export function Sidebar() {
                         {user?.email?.[0]?.toUpperCase() ?? 'A'}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '12px', fontWeight: '500', color: '#d4d4d8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {user?.email ?? 'Admin'}
                         </p>
-                        <p style={{ fontSize: '10px', color: '#52525b' }}>{user?.role}</p>
+                        <p style={{ fontSize: '10px', color: 'var(--text-4)' }}>{user?.role}</p>
                     </div>
                 </div>
                 <button
@@ -217,10 +217,10 @@ export function Sidebar() {
                         display: 'flex', alignItems: 'center', gap: '8px',
                         width: '100%', padding: '8px 10px',
                         background: 'none', border: 'none', borderRadius: '8px',
-                        cursor: 'pointer', color: '#52525b', fontSize: '13px', transition: 'all 0.15s',
+                        cursor: 'pointer', color: 'var(--text-4)', fontSize: '13px', transition: 'all 0.15s',
                     }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.08)'; (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none'; (e.currentTarget as HTMLElement).style.color = '#52525b'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none'; (e.currentTarget as HTMLElement).style.color = 'var(--text-4)'; }}
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

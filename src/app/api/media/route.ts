@@ -4,7 +4,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? process.env.API_URL ?? 'http:
 const TOKEN_COOKIE = 'nr_admin_token';
 
 export async function GET(req: NextRequest) {
-    const token = req.cookies.get(TOKEN_COOKIE)?.value;
+    const token =
+        req.cookies.get(TOKEN_COOKIE)?.value
+        ?? req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+        ?? null;
     const rawPath = req.nextUrl.searchParams.get('path');
 
     if (!token) {

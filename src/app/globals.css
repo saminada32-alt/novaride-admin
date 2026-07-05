@@ -3,18 +3,15 @@
 @tailwind utilities;
 
 :root {
-    {
-    /* Defaults — overridden by ThemeProvider */
-  }
-
+  /* Defaults — overridden by ThemeProvider */
   --bg: #09090b;
   --bg-card: #111114;
   --bg-hover: #18181b;
   --border: rgba(255, 255, 255, 0.07);
   --border-2: rgba(255, 255, 255, 0.12);
-  --text-1: #060505;
+  --text-1: #fafafa;
   --text-2: #a1a1aa;
-  --text-3: #05050b;
+  --text-3: #71717a;
   --text-4: #52525b;
   --accent: #6366f1;
   --accent-2: #818cf8;

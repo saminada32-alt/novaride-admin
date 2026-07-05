@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { driversApi } from '@/lib/api';
 import type { Driver } from '@/lib/types';
 
@@ -14,9 +15,11 @@ export function useDrivers(status?: string) {
         setError(null);
         try {
             const res = await driversApi.getAll(status);
-            setDrivers(res.data);
-        } catch {
-            setError('Failed to load drivers');
+            setDrivers(Array.isArray(res.data) ? res.data : []);
+        } catch (e: any) {
+            const msg = e?.response?.data?.message ?? 'Failed to load drivers';
+            setError(String(msg));
+            toast.error(String(msg));
         } finally {
             setLoading(false);
         }

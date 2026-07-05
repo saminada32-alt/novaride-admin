@@ -10,6 +10,7 @@ import { approveDriverFull } from '@/lib/approve-driver';
 import { Header } from '@/components/layout/Header';
 import { formatDate } from '@/lib/utils';
 import { Pagination } from '@/components/ui/Pagination';
+import { panel } from '@/lib/panel-styles';
 import type { Driver } from '@/lib/types';
 
 const STATUS = {
@@ -85,26 +86,18 @@ export default function DriversPage() {
         <>
             <Header />
 
-            <div style={{
-                padding: '34px 40px',
-                maxWidth: 1400,
-                margin: '0 auto',
-            }}>
+            <div style={{ ...panel.page, padding: '34px 40px' }}>
                 <div style={{ marginBottom: 26 }}>
                     <h1 style={{
                         fontSize: 34,
                         fontWeight: 900,
                         letterSpacing: 1,
-                        color: '#fff'
+                        color: 'var(--text-1)',
                     }}>
                         DRIVERS
                     </h1>
 
-                    <p style={{
-                        marginTop: 6,
-                        fontSize: 14,
-                        color: '#71717a'
-                    }}>
+                    <p style={{ marginTop: 6, fontSize: 14, ...panel.textMuted }}>
                         {isAr ? 'كل السائقين المسجّلين في النظام' : 'All registered drivers in the system'}
                     </p>
                 </div>
@@ -119,12 +112,7 @@ export default function DriversPage() {
                         <button
                             key={f.key || 'all'}
                             onClick={() => { setTab(f.key); setPage(1); }}
-                            style={{
-                                padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 700,
-                                border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
-                                background: tab === f.key ? '#6366f1' : 'rgba(255,255,255,0.04)',
-                                color: tab === f.key ? '#fff' : '#a1a1aa',
-                            }}
+                            style={panel.tab(tab === f.key)}
                         >
                             {f.label}
                         </button>
@@ -140,25 +128,23 @@ export default function DriversPage() {
                         height: 42,
                         padding: '0 14px',
                         borderRadius: 12,
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: '#fff',
                         marginBottom: 20,
-                        outline: 'none'
+                        ...panel.input,
                     }}
                 />
 
                 <div style={{
                     borderRadius: 18,
                     overflow: 'hidden',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    background: 'rgba(255,255,255,0.02)'
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-1)',
                 }}>
                     {loading ? (
-                        <div style={{ padding: 40, color: '#666' }}>Loading...</div>
+                        <div style={{ padding: 40, ...panel.textMuted }}>Loading...</div>
                     ) : paginated.length === 0 ? (
-                        <div style={{ padding: 40, textAlign: 'center', color: '#555' }}>
-                            No drivers found
+                        <div style={{ padding: 40, textAlign: 'center', ...panel.textMuted }}>
+                            {isAr ? 'لا يوجد سائقين' : 'No drivers found'}
                         </div>
                     ) : (
                         paginated.map(d => {
@@ -177,22 +163,18 @@ export default function DriversPage() {
                                         display: 'grid',
                                         gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 260px',
                                         padding: '16px 18px',
-                                        borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                        ...panel.rowDivider,
                                         alignItems: 'center',
                                         cursor: 'pointer'
                                     }}
                                 >
                                     <div>
-                                        <div style={{
-                                            fontSize: 14,
-                                            fontWeight: 700,
-                                            color: '#fff'
-                                        }}>
+                                        <div style={{ fontSize: 14, fontWeight: 700, ...panel.text }}>
                                             {(d.firstName || d.lastName)
                                                 ? `${d.firstName ?? ''} ${d.lastName ?? ''}`.trim()
                                                 : (isAr ? 'بدون اسم' : 'No name')}
                                         </div>
-                                        <div style={{ fontSize: 12, color: '#666' }}>
+                                        <div style={{ fontSize: 12, ...panel.textMuted }}>
                                             {d.phone}
                                         </div>
                                     </div>
@@ -223,7 +205,7 @@ export default function DriversPage() {
                                         ⭐ {Number(d.rating).toFixed(1)}
                                     </span>
 
-                                    <span style={{ color: '#666', fontSize: 12 }}>
+                                    <span style={{ ...panel.textMuted, fontSize: 12 }}>
                                         {formatDate(d.createdAt)}
                                     </span>
 
