@@ -1,9 +1,9 @@
-# Admin panel — run beside the API stack or standalone.
+# Admin panel — shares Docker network with API/Caddy (novaride-api_default).
 #
+#   cd ~/novaride-admin
 #   NEXT_PUBLIC_API_URL=https://api.novaride.app docker compose up -d --build
 #
-# With Caddy on the API host, add to Caddyfile:
-#   admin.novaride.app { reverse_proxy admin:3000 }
+# Caddy (in novaride-api) proxies admin.novaride.app → admin:3000
 services:
   admin:
     build:
@@ -15,3 +15,10 @@ services:
       - "${ADMIN_PORT:-3001}:3000"
     environment:
       NODE_ENV: production
+    networks:
+      - novaride
+
+networks:
+  novaride:
+    external: true
+    name: novaride-api_default

@@ -10,7 +10,6 @@ import {
     type ReactNode,
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { auth } from './auth';
 import { notificationStore } from './notifications';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -93,28 +92,41 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
-        const token = auth.getToken();
-        if (!token) return;
+        let cancelled = false;
 
-        const socket = io(`${API_URL}/tracking`, {
-            auth: { token },
-            transports: ['websocket', 'polling'],
-            reconnection: true,
-            reconnectionDelayMax: 30000,
-        });
+        async function connect() {
+            try {
+                const res = await fetch('/api/auth/ws-token', { cache: 'no-store' });
+                if (!res.ok) return;
+                const { token } = await res.json();
+                if (!token || cancelled) return;
 
-        socketRef.current = socket;
+                const socket = io(`${API_URL}/tracking`, {
+                    auth: { token },
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionDelayMax: 30000,
+                });
 
-        socket.on('connect', () => setConnected(true));
-        socket.on('disconnect', () => setConnected(false));
-        socket.on('connect_error', () => setConnected(false));
+                socketRef.current = socket;
 
-        socket.on('admin:event', (data) => {
-            handleAdminEvent(data, triggerRefresh);
-        });
+                socket.on('connect', () => setConnected(true));
+                socket.on('disconnect', () => setConnected(false));
+                socket.on('connect_error', () => setConnected(false));
+
+                socket.on('admin:event', (data) => {
+                    handleAdminEvent(data, triggerRefresh);
+                });
+            } catch {
+                setConnected(false);
+            }
+        }
+
+        void connect();
 
         return () => {
-            socket.disconnect();
+            cancelled = true;
+            socketRef.current?.disconnect();
             socketRef.current = null;
             setConnected(false);
         };

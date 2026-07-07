@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? process.env.API_URL ?? 'http://localhost:3000';
 const TOKEN_COOKIE = 'nr_admin_token';
 
+function apiOrigin(): string {
+    return API_URL.replace(/\/$/, '');
+}
+
+/** Strip expired signed-URL query — admin Bearer auth is authoritative. */
+function bareUploadPath(rawPath: string): string {
+    const noQuery = rawPath.split('?')[0] ?? rawPath;
+    return noQuery.startsWith('/') ? noQuery : `/${noQuery}`;
+}
+
 export async function GET(req: NextRequest) {
     const token =
         req.cookies.get(TOKEN_COOKIE)?.value
@@ -17,34 +27,39 @@ export async function GET(req: NextRequest) {
         return new NextResponse('Invalid path', { status: 400 });
     }
 
-    let fetchUrl = `${API_URL.replace(/\/$/, '')}${rawPath}`;
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+    };
 
-    if (!rawPath.includes('sig=')) {
-        try {
-            const signRes = await fetch(
-                `${API_URL.replace(/\/$/, '')}/uploads/signed-url?path=${encodeURIComponent(rawPath)}`,
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                    cache: 'no-store',
-                },
-            );
-            if (signRes.ok) {
-                const data = await signRes.json();
-                if (data?.url) {
-                    fetchUrl = data.url.startsWith('http')
-                        ? data.url
-                        : `${API_URL.replace(/\/$/, '')}${data.url}`;
-                }
-            } else {
-                headers.Authorization = `Bearer ${token}`;
+    const barePath = bareUploadPath(rawPath);
+    let fetchUrl = `${apiOrigin()}${barePath}`;
+
+    // Prefer a fresh signed URL when available (browser cache-friendly).
+    try {
+        const signRes = await fetch(
+            `${apiOrigin()}/uploads/signed-url?path=${encodeURIComponent(barePath)}`,
+            { headers, cache: 'no-store' },
+        );
+        if (signRes.ok) {
+            const data = await signRes.json();
+            const signed = data?.url as string | undefined;
+            if (signed) {
+                fetchUrl = signed.startsWith('http')
+                    ? signed
+                    : `${apiOrigin()}${signed.startsWith('/') ? signed : `/${signed}`}`;
             }
-        } catch {
-            headers.Authorization = `Bearer ${token}`;
         }
+    } catch {
+        // Bearer-only fetch below.
     }
 
-    const upstream = await fetch(fetchUrl, { headers, cache: 'no-store' });
+    let upstream = await fetch(fetchUrl, { headers, cache: 'no-store' });
+
+    // Expired sig or signing miss — retry with Bearer on the canonical path.
+    if (!upstream.ok) {
+        upstream = await fetch(`${apiOrigin()}${barePath}`, { headers, cache: 'no-store' });
+    }
+
     if (!upstream.ok) {
         return new NextResponse('Not found', { status: upstream.status });
     }

@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { adminApi } from '@/lib/api';
 import { auth } from '@/lib/auth';
+import { useI18n } from '@/lib/i18n';
 
 export default function LoginPage() {
     const router = useRouter();
+    const { isAr } = useI18n();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
