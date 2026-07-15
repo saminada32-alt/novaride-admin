@@ -3,10 +3,15 @@ import { auth } from './auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
+/** Browser: same-origin proxy avoids CSP issues. Server: talk to API directly. */
+const clientBaseUrl =
+    typeof window !== 'undefined' ? '/api/proxy' : API_URL;
+
 const createClient = (): AxiosInstance => {
     const client = axios.create({
-        baseURL: API_URL,
-        timeout: 15000,
+        baseURL: clientBaseUrl,
+        timeout: 30000,
+        withCredentials: true,
         headers: { 'Content-Type': 'application/json' },
     });
 
@@ -20,7 +25,8 @@ const createClient = (): AxiosInstance => {
         (res) => res,
         async (err) => {
             const url = String(err.config?.url ?? '');
-            const isLogin = url.includes('/admin/login');
+            const isLogin =
+                url.includes('/admin/login') || url.includes('/api/auth/login');
             if (err.response?.status === 401 && typeof window !== 'undefined' && !isLogin) {
                 auth.clear();
                 window.location.href = '/login';
@@ -38,7 +44,11 @@ export const api = createClient();
 
 export const adminApi = {
     login: (email: string, password: string, totpCode?: string) =>
-        api.post('/admin/login', { email, password, totpCode }),
+        axios.post(
+            '/api/auth/login',
+            { email, password, totpCode },
+            { withCredentials: true, timeout: 30000 },
+        ),
     getMe: () => api.get('/admin/me'),
 };
 

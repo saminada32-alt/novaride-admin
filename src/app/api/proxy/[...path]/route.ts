@@ -14,7 +14,12 @@ async function proxy(req: NextRequest, slug: string[]) {
     const headers = new Headers();
     const contentType = req.headers.get('content-type');
     if (contentType) headers.set('Content-Type', contentType);
-    if (token) headers.set('Authorization', `Bearer ${token}`);
+    const authHeader = req.headers.get('authorization');
+    if (authHeader) {
+        headers.set('Authorization', authHeader);
+    } else if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
 
     const init: RequestInit = {
         method: req.method,

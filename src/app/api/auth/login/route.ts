@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
         admin: data.admin,
+        access_token: data.access_token,
         mfaRequired: false,
     });
 

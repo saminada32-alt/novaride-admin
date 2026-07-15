@@ -41,8 +41,8 @@ export default function LoginPage() {
             const code = err.response?.data?.code;
             if (!err.response) {
                 toast.error(isAr
-                    ? 'تعذّر الاتصال بالسيرفر. تأكد من نشر الأدمن بآخر إصلاح.'
-                    : 'Cannot reach API server. Redeploy admin with the latest login fix.');
+                    ? 'تعذّر الاتصال بالـ API. تأكد أن السيرفر شغال على المنفذ 3000 وأعد تشغيل الأدمن (npm run dev).'
+                    : 'Cannot reach API. Ensure the API is running on port 3000 and restart admin (npm run dev).');
                 return;
             }
             if (code === 'MFA_SETUP_REQUIRED') {
