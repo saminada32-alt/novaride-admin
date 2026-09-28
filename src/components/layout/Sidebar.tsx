@@ -38,7 +38,7 @@ export function Sidebar() {
                 { href: '/rides', label: t.rides },
                 { href: '/earnings', label: t.earnings },
                 { href: '/passengers', label: isAr ? 'الركاب' : 'Passengers' },
-                { href: '/subscriptions', label: isAr ? 'الاشتراكات' : 'Subscriptions' },
+                { href: '/wallet', label: isAr ? 'محفظة السائقين' : 'Driver Wallet' },
                 { href: '/promotions', label: isAr ? 'العروض' : 'Promotions' },
                 { href: '/analytics', label: isAr ? 'التحليلات' : 'Analytics' },
                 { href: '/complaints', label: isAr ? 'الشكاوى' : 'Complaints' },
@@ -72,7 +72,7 @@ export function Sidebar() {
         '/earnings': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>,
         // في icons object
         '/passengers': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4" /><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /></svg>,
-        '/subscriptions': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>,
+        '/wallet': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4z" /></svg>,
         '/promotions': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>,
         '/analytics': <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>,
 

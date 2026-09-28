@@ -106,7 +106,7 @@ export interface OpsDashboard {
     payments: {
         ridesAwaitingConfirm: number;
         driverPayoutsPending: number;
-        subscriptionPaymentsPending: number;
+        walletTopupsPending: number;
     };
     support: { complaints: { open: number; inReview: number; resolved: number; rejected: number; total: number } };
     infrastructure: {
@@ -267,22 +267,15 @@ export const complaintsApi = {
         api.patch(`/complaints/${id}/resolve`, data),
 };
 
-export const subscriptionsApi = {
-    getAll: (status?: string) =>
-        api.get('/subscriptions', { params: status && status !== 'all' ? { status } : {} }),
-    getPendingPayments: () => api.get('/subscriptions/payments/pending'),
-    confirmPayment: (id: number, data: {
-        amount: number;
-        method: string;
-        reference?: string;
-        note?: string;
-    }) => api.patch(`/subscriptions/${id}/confirm-payment`, data),
-    approvePayment: (paymentId: number) =>
-        api.patch(`/subscriptions/payments/${paymentId}/approve`),
-    rejectPayment: (paymentId: number, note?: string) =>
-        api.patch(`/subscriptions/payments/${paymentId}/reject`, { note }),
-    suspend: (id: number, reason?: string) =>
-        api.patch(`/subscriptions/${id}/suspend`, { reason }),
+export const walletApi = {
+    getPendingTopups: () => api.get('/wallet/topup-requests/pending'),
+    getAllTopups: (status?: string) =>
+        api.get('/wallet/topup-requests', { params: status && status !== 'all' ? { status } : {} }),
+    getBalances: () => api.get('/wallet/balances'),
+    approveTopup: (id: number) =>
+        api.patch(`/wallet/topup-requests/${id}/approve`),
+    rejectTopup: (id: number, note?: string) =>
+        api.patch(`/wallet/topup-requests/${id}/reject`, { note }),
 };
 
 export const adminSettingsApi = {
