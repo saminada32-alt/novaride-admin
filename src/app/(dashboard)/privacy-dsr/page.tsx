@@ -78,8 +78,14 @@ export default function PrivacyDsrPage() {
             setRows(listRes.data?.data ?? []);
             setTotal(listRes.data?.total ?? 0);
             setStats(statsRes.data);
-        } catch {
-            toast.error(isAr ? 'فشل تحميل طلبات الخصوصية' : 'Failed to load privacy requests');
+        } catch (e: unknown) {
+            const err = e as { response?: { status?: number; data?: { message?: string } } };
+            const detail = err.response?.data?.message
+                ? ` (${err.response.status ?? ''} ${err.response.data.message})`
+                : '';
+            toast.error(
+                (isAr ? 'فشل تحميل طلبات الخصوصية' : 'Failed to load privacy requests') + detail,
+            );
         } finally {
             setLoading(false);
         }
