@@ -1,11 +1,13 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { LangToggle } from '@/components/ui/LangToggle';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { MarketSelector } from '@/components/layout/MarketSelector';
 import { useI18n } from '@/lib/i18n';
 import { useRealtime } from '@/lib/realtime';
 import { useTheme } from '@/lib/theme';
+import { findNavMeta } from '@/lib/nav';
 
 interface HeaderProps { title?: string; subtitle?: string; }
 
@@ -14,6 +16,10 @@ export function Header({ title, subtitle }: HeaderProps) {
     const { connected } = useRealtime();
     const { theme, update } = useTheme();
     const isLight = theme.mode === 'light';
+    const pathname = usePathname();
+    const meta = findNavMeta(pathname);
+    const groupLabel = meta ? (isAr ? meta.group.ar : meta.group.en) : null;
+    const description = subtitle ?? (meta ? (isAr ? meta.item.descAr : meta.item.descEn) : undefined);
 
     function toggleTheme() {
         update({ mode: isLight ? 'dark' : 'light' });
@@ -21,7 +27,7 @@ export function Header({ title, subtitle }: HeaderProps) {
 
     return (
         <header style={{
-            height: '58px',
+            height: '72px',
             position: 'sticky', top: 0, zIndex: 30,
             display: 'flex', alignItems: 'center',
             justifyContent: 'space-between',
@@ -30,15 +36,25 @@ export function Header({ title, subtitle }: HeaderProps) {
             borderBottom: '1px solid var(--border, rgba(255,255,255,0.06))',
             backdropFilter: 'blur(20px)',
         }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
+                {groupLabel && (
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-4, #52525b)' }}>
+                        {groupLabel}
+                    </p>
+                )}
                 <h1 style={{
-                    fontSize: '15px', fontWeight: '600',
+                    fontSize: '16px', fontWeight: '700',
                     color: 'var(--text-1, #e4e4e7)', letterSpacing: '-0.2px',
                 }}>
                     {title}
                 </h1>
-                {subtitle && (
-                    <p style={{ fontSize: '11px', color: 'var(--text-3, #71717a)' }}>{subtitle}</p>
+                {description && (
+                    <p style={{
+                        fontSize: '12px', color: 'var(--text-3, #71717a)',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>
+                        {description}
+                    </p>
                 )}
             </div>
 

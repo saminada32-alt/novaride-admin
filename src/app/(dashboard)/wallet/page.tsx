@@ -1,16 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Header } from '@/components/layout/Header';
 import { walletApi } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
+import { panel } from '@/lib/panel-styles';
 
 type TopupRequest = {
     id: number;
     driverId: number;
-    amount: number;
+    amount: number | string;
     method: 'bank' | 'cash';
     reference?: string;
     note?: string;
@@ -28,34 +29,41 @@ type BalanceRow = {
     phone?: string;
 };
 
-const fmt = (n: number, sym = 'ل.س') =>
-    `${Number(n).toLocaleString('ar-SY', { maximumFractionDigits: 0 })} ${sym}`;
+type Tab = 'pending' | 'history' | 'balances';
 
-const methodLabel: Record<string, { ar: string; en: string }> = {
-    bank: { ar: 'تحويل بنكي', en: 'Bank transfer' },
-    cash: { ar: 'كاش', en: 'Cash' },
+const fmt = (n: number) =>
+    `${Math.round(Number(n)).toLocaleString('en-US')} ل.س`;
+
+const driverName = (d?: { firstName?: string; lastName?: string; phone?: string } | null, id?: number) =>
+    [d?.firstName, d?.lastName].filter(Boolean).join(' ') || d?.phone || `#${id ?? '?'}`;
+
+const STATUS: Record<string, { c: string; ar: string; en: string }> = {
+    pending: { c: '#f59e0b', ar: 'بانتظار الاعتماد', en: 'Pending' },
+    approved: { c: '#22c55e', ar: 'تم الشحن', en: 'Approved' },
+    rejected: { c: '#ef4444', ar: 'مرفوض', en: 'Rejected' },
 };
 
 export default function WalletPage() {
-    const [pending, setPending] = useState<TopupRequest[]>([]);
-    const [balances, setBalances] = useState<BalanceRow[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [tab, setTab] = useState<'pending' | 'balances'>('pending');
     const { isAr } = useI18n();
+    const [tab, setTab] = useState<Tab>('pending');
+    const [loading, setLoading] = useState(true);
+    const [pending, setPending] = useState<TopupRequest[]>([]);
+    const [history, setHistory] = useState<TopupRequest[]>([]);
+    const [balances, setBalances] = useState<BalanceRow[]>([]);
+    const [busyId, setBusyId] = useState<number | null>(null);
 
     const load = useCallback(async () => {
-        setLoading(true);
         try {
-            const [pendingRes, balancesRes] = await Promise.all([
+            const [p, h, b] = await Promise.all([
                 walletApi.getPendingTopups(),
+                walletApi.getAllTopups('all'),
                 walletApi.getBalances(),
             ]);
-            setPending(Array.isArray(pendingRes.data) ? pendingRes.data : []);
-            setBalances(Array.isArray(balancesRes.data) ? balancesRes.data : []);
+            setPending(Array.isArray(p.data) ? p.data : []);
+            setHistory(Array.isArray(h.data) ? h.data : []);
+            setBalances(Array.isArray(b.data) ? b.data : []);
         } catch {
-            setPending([]);
-            setBalances([]);
-            toast.error(isAr ? 'فشل تحميل المحفظة' : 'Failed to load wallet data');
+            toast.error(isAr ? 'تعذّر تحميل بيانات المحفظة' : 'Could not load wallet data');
         } finally {
             setLoading(false);
         }
@@ -64,168 +72,213 @@ export default function WalletPage() {
     useEffect(() => { load(); }, [load]);
     useRealtimeUpdates(load);
 
-    const approve = async (id: number) => {
+    const stats = useMemo(() => ({
+        pendingCount: pending.length,
+        pendingSum: pending.reduce((a, r) => a + Number(r.amount), 0),
+        totalBalance: balances.reduce((a, b) => a + Number(b.balance), 0),
+        blocked: balances.filter((b) => Number(b.balance) <= 0).length,
+    }), [pending, balances]);
+
+    async function approve(r: TopupRequest) {
+        const ok = window.confirm(
+            isAr
+                ? `تأكيد استلام ${fmt(Number(r.amount))} من ${driverName(r.driver, r.driverId)} وشحن رصيده؟`
+                : `Confirm you received ${fmt(Number(r.amount))} from ${driverName(r.driver, r.driverId)} and top up their wallet?`,
+        );
+        if (!ok) return;
+        setBusyId(r.id);
         try {
-            await walletApi.approveTopup(id);
-            toast.success(isAr ? 'تم شحن المحفظة' : 'Wallet topped up');
+            await walletApi.approveTopup(r.id);
+            toast.success(isAr ? 'تم شحن رصيد السائق' : 'Driver wallet topped up');
             load();
         } catch {
-            toast.error(isAr ? 'فشل القبول' : 'Approve failed');
+            toast.error(isAr ? 'فشل الاعتماد' : 'Approval failed');
+        } finally {
+            setBusyId(null);
         }
-    };
+    }
 
-    const reject = async (id: number) => {
-        const note = window.prompt(isAr ? 'سبب الرفض (اختياري)' : 'Rejection reason (optional)') ?? '';
+    async function reject(r: TopupRequest) {
+        const note = window.prompt(isAr ? 'سبب الرفض (يظهر للسائق عبر SMS)' : 'Reason for rejecting (sent to the driver by SMS)');
+        if (note === null) return;
+        setBusyId(r.id);
         try {
-            await walletApi.rejectTopup(id, note || undefined);
-            toast.success(isAr ? 'تم الرفض' : 'Request rejected');
+            await walletApi.rejectTopup(r.id, note || undefined);
+            toast.success(isAr ? 'تم رفض الطلب' : 'Request rejected');
             load();
         } catch {
             toast.error(isAr ? 'فشل الرفض' : 'Reject failed');
+        } finally {
+            setBusyId(null);
         }
-    };
-
-    if (loading) {
-        return (
-            <>
-                <Header title={isAr ? 'محفظة السائقين' : 'Driver Wallet'} />
-                <div style={{ padding: 20, color: '#71717a' }}>{isAr ? 'جاري التحميل...' : 'Loading...'}</div>
-            </>
-        );
     }
+
+    const methodLabel = (m: string) =>
+        m === 'bank' ? (isAr ? 'تحويل بنكي' : 'Bank transfer') : (isAr ? 'كاش' : 'Cash');
+
+    const summary = [
+        {
+            label: isAr ? 'طلبات بانتظار الاعتماد' : 'Requests waiting',
+            value: String(stats.pendingCount),
+            hint: stats.pendingCount ? fmt(stats.pendingSum) : (isAr ? 'لا شيء معلّق' : 'Nothing pending'),
+            color: stats.pendingCount ? '#f59e0b' : '#22c55e',
+        },
+        {
+            label: isAr ? 'إجمالي أرصدة السائقين' : 'Total driver balances',
+            value: fmt(stats.totalBalance),
+            hint: isAr ? 'المبلغ المدفوع مسبقاً وغير المستهلك' : 'Prepaid money not yet spent',
+            color: '#6366f1',
+        },
+        {
+            label: isAr ? 'سائقون لا يستطيعون العمل' : 'Drivers who can\'t go online',
+            value: String(stats.blocked),
+            hint: isAr ? 'رصيدهم صفر أو أقل — بحاجة لشحن' : 'Balance is zero or negative',
+            color: stats.blocked ? '#ef4444' : '#22c55e',
+        },
+    ];
+
+    const tabs: { id: Tab; label: string; n?: number }[] = [
+        { id: 'pending', label: isAr ? 'بانتظار الاعتماد' : 'Pending', n: pending.length },
+        { id: 'history', label: isAr ? 'السجل' : 'History' },
+        { id: 'balances', label: isAr ? 'أرصدة السائقين' : 'Balances' },
+    ];
+
+    const rowStyle = {
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: 'wrap', gap: 12, padding: '14px 18px',
+        borderBottom: '1px solid var(--border)',
+    } as const;
 
     return (
         <>
             <Header title={isAr ? 'محفظة السائقين' : 'Driver Wallet'} />
-            <div style={{ padding: '28px 32px' }}>
+            <div style={panel.page}>
 
-                <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                    {(['pending', 'balances'] as const).map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => setTab(t)}
-                            style={{
-                                padding: '10px 16px',
-                                borderRadius: 10,
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                background: tab === t ? '#a78bfa' : 'rgba(255,255,255,0.05)',
-                                color: tab === t ? '#000' : '#fff',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                            }}
-                        >
-                            {t === 'pending'
-                                ? `${isAr ? 'طلبات شحن معلقة' : 'Pending top-ups'} (${pending.length})`
-                                : isAr ? 'كل الأرصدة' : 'All balances'}
+                <div style={{
+                    ...panel.cardSubtle, padding: '14px 18px', marginBottom: 20,
+                    fontSize: 13, lineHeight: 1.7, ...panel.textSecondary,
+                }}>
+                    {isAr
+                        ? 'السائق يشحن رصيده أولاً ثم يعمل، وتُخصم عمولة 10% تلقائياً من كل رحلة. الشحن عبر شام كاش يُضاف تلقائياً. أما التحويل البنكي والكاش فيظهران هنا ليتأكد فريقك من استلام المبلغ قبل الاعتماد.'
+                        : 'Drivers top up first, then work; a 10% commission is deducted from each ride. Sham Cash top-ups are credited automatically. Bank and cash requests appear here so your team can confirm the money arrived before approving.'}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 22 }}>
+                    {summary.map((s) => (
+                        <div key={s.label} style={{ ...panel.card, padding: '16px 18px', borderInlineStart: `4px solid ${s.color}` }}>
+                            <p style={{ fontSize: 12, ...panel.textMuted }}>{s.label}</p>
+                            <p style={{ fontSize: 24, fontWeight: 800, margin: '4px 0', color: s.color }}>{s.value}</p>
+                            <p style={{ fontSize: 11, ...panel.textMuted }}>{s.hint}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {tabs.map((t) => (
+                        <button key={t.id} onClick={() => setTab(t.id)} style={panel.tab(tab === t.id)}>
+                            {t.label}{t.n ? ` (${t.n})` : ''}
                         </button>
                     ))}
                 </div>
 
-                {tab === 'pending' && (
-                    <div style={{ display: 'grid', gap: 12 }}>
-                        {pending.length === 0 && (
-                            <div style={{ color: '#71717a' }}>
-                                {isAr ? 'لا توجد طلبات شحن بانتظار المراجعة' : 'No pending top-up requests'}
-                            </div>
-                        )}
-                        {pending.map((r) => {
-                            const method = methodLabel[r.method] ?? { ar: r.method, en: r.method };
-                            const name = [r.driver?.firstName, r.driver?.lastName].filter(Boolean).join(' ')
-                                || r.driver?.phone
-                                || `#${r.driverId}`;
-                            return (
-                                <div
-                                    key={r.id}
-                                    style={{
-                                        background: 'rgba(255,255,255,0.03)',
-                                        border: '1px solid rgba(255,255,255,0.08)',
-                                        borderRadius: 16,
-                                        padding: 16,
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                                        <div>
-                                            <div style={{ fontWeight: 800, fontSize: 18, color: '#fff' }}>
-                                                {fmt(+r.amount)}
-                                            </div>
-                                            <div style={{ color: '#a1a1aa', fontSize: 13, marginTop: 4 }}>
-                                                {name} · {r.driver?.phone}
-                                            </div>
-                                            <div style={{ color: '#71717a', fontSize: 12, marginTop: 4 }}>
-                                                {isAr ? method.ar : method.en} {r.reference ? `· Ref: ${r.reference}` : ''}
-                                            </div>
-                                            {r.note && (
-                                                <div style={{ color: '#71717a', fontSize: 12, marginTop: 4 }}>{r.note}</div>
-                                            )}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                            <button
-                                                onClick={() => approve(r.id)}
-                                                style={{
-                                                    padding: '8px 14px',
-                                                    borderRadius: 10,
-                                                    border: 0,
-                                                    background: '#22c55e',
-                                                    color: '#000',
-                                                    fontWeight: 800,
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
-                                                {isAr ? 'قبول وشحن' : 'Approve & top up'}
-                                            </button>
-                                            <button
-                                                onClick={() => reject(r.id)}
-                                                style={{
-                                                    padding: '8px 14px',
-                                                    borderRadius: 10,
-                                                    border: '1px solid #ef4444',
-                                                    background: 'transparent',
-                                                    color: '#ef4444',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
-                                                {isAr ? 'رفض' : 'Reject'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                {loading ? (
+                    <p style={{ ...panel.textMuted, padding: 20 }}>{isAr ? 'جاري التحميل...' : 'Loading...'}</p>
+                ) : (
+                    <div style={{ ...panel.card, overflow: 'hidden' }}>
 
-                {tab === 'balances' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-                        {balances.length === 0 && (
-                            <div style={{ color: '#71717a' }}>
-                                {isAr ? 'لا يوجد سائقون لديهم رصيد محفظة بعد' : 'No driver wallets yet'}
+                        {tab === 'pending' && (pending.length === 0 ? (
+                            <p style={{ padding: 32, textAlign: 'center', ...panel.textMuted }}>
+                                {isAr ? 'لا توجد طلبات شحن بانتظار الاعتماد' : 'No top-up requests waiting'}
+                            </p>
+                        ) : pending.map((r) => (
+                            <div key={r.id} style={rowStyle}>
+                                <div>
+                                    <p style={{ fontSize: 18, fontWeight: 800, ...panel.text }}>{fmt(Number(r.amount))}</p>
+                                    <p style={{ fontSize: 13, marginTop: 2, ...panel.textSecondary }}>
+                                        {driverName(r.driver, r.driverId)}{r.driver?.phone ? ` · ${r.driver.phone}` : ''}
+                                    </p>
+                                    <p style={{ fontSize: 12, marginTop: 2, ...panel.textMuted }}>
+                                        {methodLabel(r.method)}
+                                        {r.reference ? ` · ${isAr ? 'مرجع' : 'Ref'}: ${r.reference}` : ''}
+                                        {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleString(isAr ? 'ar-SY' : 'en-GB')}` : ''}
+                                    </p>
+                                    {r.note && <p style={{ fontSize: 12, marginTop: 2, ...panel.textMuted }}>{r.note}</p>}
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button
+                                        disabled={busyId === r.id}
+                                        onClick={() => approve(r)}
+                                        style={{
+                                            padding: '9px 16px', borderRadius: 10, border: 0, cursor: 'pointer',
+                                            background: '#22c55e', color: '#052e16', fontWeight: 800, fontSize: 13,
+                                            opacity: busyId === r.id ? 0.6 : 1,
+                                        }}
+                                    >
+                                        {isAr ? 'استلمت المبلغ — اشحن' : 'Received — top up'}
+                                    </button>
+                                    <button
+                                        disabled={busyId === r.id}
+                                        onClick={() => reject(r)}
+                                        style={{
+                                            padding: '9px 16px', borderRadius: 10, cursor: 'pointer',
+                                            background: 'transparent', border: '1px solid #ef4444',
+                                            color: '#ef4444', fontWeight: 700, fontSize: 13,
+                                        }}
+                                    >
+                                        {isAr ? 'رفض' : 'Reject'}
+                                    </button>
+                                </div>
                             </div>
-                        )}
-                        {balances.map((b) => {
-                            const name = [b.firstName, b.lastName].filter(Boolean).join(' ') || b.phone || `#${b.driverId}`;
-                            const balance = +b.balance;
+                        )))}
+
+                        {tab === 'history' && (history.length === 0 ? (
+                            <p style={{ padding: 32, textAlign: 'center', ...panel.textMuted }}>
+                                {isAr ? 'لا يوجد سجل بعد' : 'No history yet'}
+                            </p>
+                        ) : history.map((r) => {
+                            const st = STATUS[r.status] ?? STATUS.pending;
                             return (
-                                <div
-                                    key={b.driverId}
-                                    style={{
-                                        background: 'rgba(255,255,255,0.03)',
-                                        border: '1px solid rgba(255,255,255,0.08)',
-                                        borderRadius: 16,
-                                        padding: 16,
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 800, color: '#c4b5fd', marginBottom: 8 }}>{name}</div>
-                                    <div style={{ fontSize: 22, fontWeight: 900, color: balance > 0 ? '#4ade80' : '#f87171' }}>
-                                        {fmt(balance)}
+                                <div key={r.id} style={rowStyle}>
+                                    <div>
+                                        <p style={{ fontSize: 15, fontWeight: 700, ...panel.text }}>{fmt(Number(r.amount))}</p>
+                                        <p style={{ fontSize: 12, marginTop: 2, ...panel.textSecondary }}>
+                                            {driverName(r.driver, r.driverId)} · {methodLabel(r.method)}
+                                            {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleDateString(isAr ? 'ar-SY' : 'en-GB')}` : ''}
+                                        </p>
                                     </div>
-                                    <div style={{ fontSize: 12, color: '#71717a', marginTop: 6 }}>
-                                        {isAr ? 'آخر تحديث: ' : 'Updated: '}
-                                        {new Date(b.updatedAt).toLocaleString(isAr ? 'ar-SY' : 'en-US')}
+                                    <span style={{
+                                        padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+                                        color: st.c, border: `1px solid ${st.c}`,
+                                    }}>
+                                        {isAr ? st.ar : st.en}
+                                    </span>
+                                </div>
+                            );
+                        }))}
+
+                        {tab === 'balances' && (balances.length === 0 ? (
+                            <p style={{ padding: 32, textAlign: 'center', ...panel.textMuted }}>
+                                {isAr ? 'لم يشحن أي سائق محفظته بعد' : 'No driver has topped up yet'}
+                            </p>
+                        ) : balances.map((b) => {
+                            const bal = Number(b.balance);
+                            return (
+                                <div key={b.driverId} style={rowStyle}>
+                                    <div>
+                                        <p style={{ fontSize: 14, fontWeight: 700, ...panel.text }}>{driverName(b, b.driverId)}</p>
+                                        <p style={{ fontSize: 12, marginTop: 2, ...panel.textMuted }}>
+                                            {b.phone ?? ''} · {isAr ? 'آخر حركة' : 'Last activity'}: {new Date(b.updatedAt).toLocaleDateString(isAr ? 'ar-SY' : 'en-GB')}
+                                        </p>
+                                    </div>
+                                    <div style={{ textAlign: 'end' }}>
+                                        <p style={{ fontSize: 18, fontWeight: 800, color: bal > 0 ? '#22c55e' : '#ef4444' }}>{fmt(bal)}</p>
+                                        <p style={{ fontSize: 11, color: bal > 0 ? 'var(--text-3)' : '#ef4444' }}>
+                                            {bal > 0 ? (isAr ? 'يستطيع العمل' : 'Can go online') : (isAr ? 'لا يستطيع العمل — يحتاج شحن' : 'Can\'t go online — needs a top-up')}
+                                        </p>
                                     </div>
                                 </div>
                             );
-                        })}
+                        }))}
                     </div>
                 )}
             </div>

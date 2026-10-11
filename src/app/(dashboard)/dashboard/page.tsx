@@ -13,6 +13,7 @@ import { driversApi } from '@/lib/api';
 import { approveDriverFull } from '@/lib/approve-driver';
 import type { Driver } from '@/lib/types';
 import { panel } from '@/lib/panel-styles';
+import { pendingCounts, useOpsDashboard } from '@/hooks/useOpsDashboard';
 
 const STATUS_COLORS: any = {
     SEARCHING: { bg: 'rgba(245,158,11,0.1)', text: '#fbbf24' },
@@ -30,6 +31,8 @@ export default function DashboardPage() {
     const { stats, health, loading } = useStats();
     const { rides } = useRides();
     const { t, isAr } = useI18n();
+    const { data: ops } = useOpsDashboard();
+    const counts = pendingCounts(ops);
     const [pendingDrivers, setPendingDrivers] = useState<Driver[]>([]);
     const [approvingId, setApprovingId] = useState<number | null>(null);
 
@@ -114,6 +117,73 @@ export default function DashboardPage() {
         <>
             <Header title={t.dashboard} />
             <div style={panel.page}>
+
+                {/* Needs your attention */}
+                {(() => {
+                    const items = [
+                        { href: '/drivers?tab=pending', n: counts.pendingDrivers, color: '#6366f1',
+                          ar: 'سائقون ينتظرون القبول', en: 'Drivers awaiting approval',
+                          hAr: 'راجع مستنداتهم ثم اقبل أو ارفض', hEn: 'Review their documents, then approve or reject' },
+                        { href: '/wallet', n: counts.walletTopups, color: '#22c55e',
+                          ar: 'طلبات شحن رصيد', en: 'Wallet top-up requests',
+                          hAr: 'تحويل بنكي أو كاش بانتظار اعتمادك', hEn: 'Bank or cash top-ups waiting for you' },
+                        { href: '/sham-cash-queue', n: counts.shamCash, color: '#0ea5e9',
+                          ar: 'مدفوعات رحلات للتأكيد', en: 'Ride payments to confirm',
+                          hAr: 'رحلات مدفوعة بشام كاش', hEn: 'Rides paid via Sham Cash' },
+                        { href: '/payouts', n: counts.payouts, color: '#f59e0b',
+                          ar: 'طلبات سحب أرباح', en: 'Payout requests',
+                          hAr: 'سائقون يطلبون سحب أرباحهم', hEn: 'Drivers asking to withdraw earnings' },
+                        { href: '/complaints', n: counts.complaints, color: '#ef4444',
+                          ar: 'شكاوى مفتوحة', en: 'Open complaints',
+                          hAr: 'بحاجة لرد أو معالجة', hEn: 'Need a reply or resolution' },
+                    ];
+                    const total = items.reduce((a, i) => a + i.n, 0);
+                    return (
+                        <div style={{ ...panel.card, padding: '18px 20px', marginBottom: '24px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                                <p style={{ fontSize: '15px', fontWeight: 700, ...panel.text }}>
+                                    {isAr ? 'يحتاج انتباهك الآن' : 'Needs your attention'}
+                                </p>
+                                <p style={{ fontSize: '12px', ...panel.textMuted }}>
+                                    {total === 0
+                                        ? (isAr ? 'لا شيء معلّق' : 'Nothing pending')
+                                        : (isAr ? `${total} عنصر بانتظارك` : `${total} item(s) waiting`)}
+                                </p>
+                            </div>
+                            {total === 0 ? (
+                                <div style={{
+                                    padding: '18px', textAlign: 'center', borderRadius: 12,
+                                    background: 'rgba(34,197,94,0.08)', color: '#22c55e',
+                                    fontSize: 13, fontWeight: 600,
+                                }}>
+                                    {isAr ? 'كل شيء تحت السيطرة، لا توجد أمور معلّقة' : 'All clear — nothing needs you right now'}
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+                                    {items.map((i) => (
+                                        <Link key={i.href} href={i.href} style={{ textDecoration: 'none' }}>
+                                            <div style={{
+                                                ...panel.cardSubtle, padding: '14px 16px', height: '100%',
+                                                borderInlineStart: `4px solid ${i.n > 0 ? i.color : 'var(--border)'}`,
+                                                opacity: i.n > 0 ? 1 : 0.55,
+                                            }}>
+                                                <p style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.1, color: i.n > 0 ? i.color : 'var(--text-3)' }}>
+                                                    {i.n}
+                                                </p>
+                                                <p style={{ fontSize: 13, fontWeight: 600, marginTop: 4, ...panel.text }}>
+                                                    {isAr ? i.ar : i.en}
+                                                </p>
+                                                <p style={{ fontSize: 11, marginTop: 2, ...panel.textMuted }}>
+                                                    {isAr ? i.hAr : i.hEn}
+                                                </p>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* System Status */}
                 <div style={{
